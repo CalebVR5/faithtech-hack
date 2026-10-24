@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STORY_FIXTURES } from "@/fixtures/stories";
-import { chunkSegments, MAX_CAPTION_CHARS, readingPaceSegments, withTexts } from "./captions";
+import { withTexts } from "./captions";
 import { findIdentifyingDetails } from "./identifying";
 import { conflictsFor, defaultShowName, formatKey, recommendFormats, NO_PREFERENCES } from "./privacy-guide";
 import { sentenceSpans } from "./text";
@@ -20,34 +20,13 @@ describe("sentenceSpans", () => {
   });
 });
 
-describe("chunkSegments", () => {
-  const long = "I grew up going to church with my grandma in Riverside, but I stopped going in 2019.";
-
-  it("splits long captions into balanced pieces without changing words", () => {
-    const out = chunkSegments([{ text: long, startMs: 1000, endMs: 5000 }]);
-    expect(out).toHaveLength(2);
-    expect(out.map((c) => c.text).join(" ")).toBe(long);
-    // No stray last word on its own caption.
-    expect(Math.min(...out.map((c) => c.text.length))).toBeGreaterThan(25);
-    expect(out.every((c) => c.text.length <= MAX_CAPTION_CHARS)).toBe(true);
-  });
-
-  it("keeps time contiguous inside the original segment", () => {
-    const out = chunkSegments([{ text: long, startMs: 1000, endMs: 5000 }]);
-    expect(out[0].startMs).toBe(1000);
-    expect(out.at(-1)!.endMs).toBe(5000);
-    expect(out[0].endMs).toBe(out[1].startMs);
-  });
-
-  it("leaves short captions alone", () => {
-    expect(chunkSegments([{ text: " Short. ", startMs: 0, endMs: 900 }])).toEqual([{ text: "Short.", startMs: 0, endMs: 900 }]);
-  });
-
-  it("paces silent captions and swaps in translations with the same timing", () => {
-    const { segments, durationMs } = readingPaceSegments(["One.", "Two sentences here."]);
-    expect(segments[1].startMs).toBe(segments[0].endMs);
-    expect(durationMs).toBe(segments[1].endMs);
-    expect(withTexts(segments, ["Um.", "Duas frases aqui."]).map((s) => s.startMs)).toEqual(segments.map((s) => s.startMs));
+describe("withTexts", () => {
+  it("swaps in translations with the same timing", () => {
+    const segments = [
+      { text: "One.", startMs: 0, endMs: 900 },
+      { text: "Two sentences here.", startMs: 900, endMs: 2400 },
+    ];
+    expect(withTexts(segments, ["Um.", "Duas frases aqui."]).map((s) => s.startMs)).toEqual([0, 900]);
     expect(() => withTexts(segments, ["only one"])).toThrow();
   });
 });
@@ -76,13 +55,22 @@ describe("findIdentifyingDetails", () => {
 });
 
 describe("privacy guide", () => {
-  it("leads with the personal voice when nothing is hidden", () => {
-    expect(formatKey(recommendFormats(NO_PREFERENCES)[0])).toBe("video-recorded");
+  it("leads with the person's own video when nothing is hidden", () => {
+    expect(recommendFormats(NO_PREFERENCES).map(formatKey).slice(0, 2)).toEqual(["captioned-video", "video-recorded"]);
+  });
+
+  it("never recommends the own-video option when the face or surroundings should stay out", () => {
+    for (const p of [{ ...NO_PREFERENCES, hideFace: true }, { ...NO_PREFERENCES, hideSurroundings: true }]) {
+      const keys = recommendFormats(p).map(formatKey);
+      expect(keys).not.toContain("captioned-video");
+      expect(keys[0]).toBe("video-recorded");
+    }
   });
 
   it("never recommends the recorded voice when the voice should stay out", () => {
     const keys = recommendFormats({ ...NO_PREFERENCES, hideVoice: true }).map(formatKey);
     expect(keys).not.toContain("video-recorded");
+    expect(keys).not.toContain("captioned-video");
     expect(keys).toContain("video-synthetic");
   });
 
@@ -97,5 +85,8 @@ describe("privacy guide", () => {
     expect(conflictsFor(p, { kind: "narrated-video", narration: "recorded" })).toContain("recorded-voice-kept");
     expect(conflictsFor(p, { kind: "card", showName: true })).toContain("name-shown");
     expect(conflictsFor(NO_PREFERENCES, { kind: "narrated-video", narration: "recorded", showName: true })).toEqual([]);
+    const face = { ...NO_PREFERENCES, hideFace: true, hideSurroundings: true, hideVoice: true };
+    expect(conflictsFor(face, { kind: "captioned-video" })).toEqual(["recorded-voice-kept", "face-shown", "surroundings-shown"]);
+    expect(conflictsFor(face, { kind: "card", capture: "video" })).toEqual(["voice-captured", "face-captured"]);
   });
 });

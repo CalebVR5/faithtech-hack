@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const story = requireStory(sessionId, body.storyId);
     requireCapture(story);
 
-    if (body.kind !== "card" && body.kind !== "narrated-video") return jsonError(400, "Choose a format.");
+    if (body.kind !== "card" && body.kind !== "narrated-video" && body.kind !== "captioned-video") return jsonError(400, "Choose a format.");
     if (body.kind === "narrated-video" && !NARRATIONS.includes(body.narration)) return jsonError(400, "Choose a voice option.");
     const outputLanguage = isLanguageId(body.outputLanguage) ? body.outputLanguage : story.sourceLanguage;
     const span =
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     const choices: RenderChoices = {
       kind: body.kind,
-      narration: body.kind === "card" ? "none" : body.narration,
+      narration: body.kind === "card" ? "none" : body.kind === "captioned-video" ? "recorded" : body.narration,
       outputLanguage,
       showName: body.showName === true,
       showStoryLabel: body.showStoryLabel !== false,

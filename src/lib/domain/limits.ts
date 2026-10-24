@@ -40,6 +40,20 @@ export const AUDIO_TYPE_BY_EXTENSION: Record<string, string> = {
   flac: "audio/flac",
 };
 
+// Camera recordings and phone videos for "Video of me". The speech service
+// only receives the extracted sound, so the 10 MB inline limit doesn't apply.
+export const MAX_VIDEO_UPLOAD_BYTES = 150 * 1024 * 1024;
+
+export const ACCEPTED_VIDEO_TYPES = ["video/webm", "video/mp4", "video/quicktime", "video/x-m4v"] as const;
+
+/** For video uploads where the browser reports no MIME type. */
+export const VIDEO_TYPE_BY_EXTENSION: Record<string, string> = {
+  webm: "video/webm",
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  m4v: "video/x-m4v",
+};
+
 // Word confidence below this marks the word for author correction.
 export const UNCERTAIN_WORD_CONFIDENCE = 0.6;
 

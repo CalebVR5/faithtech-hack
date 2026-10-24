@@ -9,11 +9,11 @@ describe("mock provider", () => {
   it.each(STORY_FIXTURES)("synthesizes sample $id with captions spanning the audio", async ({ text, language }) => {
     const out = await mockProvider.synthesize({ text, language });
     expect(wavDurationMs(out.audio)).toBe(out.durationMs);
-    expect(out.segments.length).toBeGreaterThan(1);
-    expect(out.segments[0].startMs).toBe(0);
-    expect(out.segments.at(-1)!.endMs).toBe(out.durationMs);
-    // Captions reproduce the approved words exactly.
-    expect(out.segments.map((s) => s.text).join(" ")).toBe(text);
+    expect(out.words.length).toBeGreaterThan(1);
+    expect(out.words[0].startMs).toBe(0);
+    expect(out.words.at(-1)!.endMs).toBe(out.durationMs);
+    // The timed words are exactly the approved words.
+    expect(out.words.map((w) => w.text).join(" ")).toBe(text);
   });
 
   it("labels mock translations", async () => {

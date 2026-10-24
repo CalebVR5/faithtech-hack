@@ -40,6 +40,8 @@ export interface TranscribeResult {
   transcript: Transcript;
   durationMs: number;
   audioRef?: string;
+  videoRef?: string;
+  media: "audio" | "video";
 }
 
 export const api = {

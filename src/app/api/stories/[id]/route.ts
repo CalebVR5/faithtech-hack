@@ -1,12 +1,13 @@
 import { STORY_FIXTURES } from "@/fixtures/stories";
-import { isLanguageId } from "@/lib/domain/languages";
-import { MAX_RECORDING_SECONDS, MAX_STORY_CHARS } from "@/lib/domain/limits";
-import type { NarrationTake, PrivacyPreferences, Segment } from "@/lib/domain/types";
+import { isLanguageId, LANGUAGES } from "@/lib/domain/languages";
+import { alignWords, sentencesFromWords } from "@/lib/domain/timing";
+import { MAX_STORY_CHARS } from "@/lib/domain/limits";
+import type { NarrationTake, PrivacyPreferences, Story } from "@/lib/domain/types";
 import { requireCapture, requireStory } from "@/lib/server/guards";
 import { handleRouteError, json, RequestError } from "@/lib/server/http";
 import { getOrCreateSessionId, getSessionId } from "@/lib/server/session";
-import { deleteStory, storyView } from "@/lib/server/store";
-import { deleteFile, ownsFile } from "@/lib/server/temp-store";
+import { deleteStory, heardFor, storyView } from "@/lib/server/store";
+import { deleteFile } from "@/lib/server/temp-store";
 
 const MAX_NAME_CHARS = 40;
 
@@ -32,39 +33,42 @@ function parsePrivacy(value: unknown): PrivacyPreferences | undefined {
   };
 }
 
-function parseSegments(value: unknown, durationMs: number): Segment[] {
+/** The author's reviewed sentences for a take; only their text is used. */
+function parseReviewedText(value: unknown): string {
   if (!Array.isArray(value) || value.length === 0) throw new RequestError(400, "bad-take", "The recording's transcript is missing.");
-  let chars = 0;
-  const segments = value.map((s) => {
-    const { text, startMs, endMs } = (s ?? {}) as Record<string, unknown>;
-    if (typeof text !== "string" || typeof startMs !== "number" || typeof endMs !== "number") {
-      throw new RequestError(400, "bad-take", "The recording's transcript is malformed.");
-    }
-    if (startMs < 0 || endMs < startMs || endMs > durationMs + 1000) {
-      throw new RequestError(400, "bad-take", "Caption times don't match the recording.");
-    }
-    chars += text.length;
-    return { text: text.trim(), startMs, endMs };
+  const texts = value.map((s) => {
+    const text = (s as Record<string, unknown> | null)?.text;
+    if (typeof text !== "string") throw new RequestError(400, "bad-take", "The recording's transcript is malformed.");
+    return text.trim();
   });
-  if (chars > MAX_STORY_CHARS) throw new RequestError(413, "too-long", `Stories can be up to ${MAX_STORY_CHARS} characters.`);
-  return segments.filter((s) => s.text);
+  const joined = texts.filter(Boolean).join(" ");
+  if (!joined) throw new RequestError(400, "bad-take", "The recording's transcript is empty.");
+  if (joined.length > MAX_STORY_CHARS) throw new RequestError(413, "too-long", `Stories can be up to ${MAX_STORY_CHARS} characters.`);
+  return joined;
 }
 
-function parseTake(sessionId: string, value: unknown): NarrationTake {
+/**
+ * Builds a take from the author's reviewed words and what the speech service
+ * heard in that recording, which the server kept. Every reviewed word gets a
+ * time in the real audio, so captions change when the speaker does.
+ */
+function parseTake(sessionId: string, story: Story, value: unknown): NarrationTake {
   const v = (value ?? {}) as Record<string, unknown>;
-  if (!ownsFile(sessionId, v.audioRef)) throw new RequestError(410, "take-expired", "That recording has expired. Please record it again.");
-  const durationMs = Number(v.durationMs);
-  if (!Number.isFinite(durationMs) || durationMs <= 0 || durationMs > (MAX_RECORDING_SECONDS + 1) * 1000) {
-    throw new RequestError(400, "bad-take", "The recording's length is invalid.");
-  }
+  const heard = heardFor(sessionId, v.audioRef);
+  if (!heard) throw new RequestError(410, "take-expired", "That recording has expired. Please record it again.");
+  const text = parseReviewedText(v.segments);
+  const words = alignWords(text, heard.words, heard.durationMs);
   return {
     audioRef: v.audioRef as string,
-    durationMs,
-    segments: parseSegments(v.segments, durationMs),
+    videoRef: heard.videoRef,
+    media: heard.media,
+    durationMs: heard.durationMs,
+    segments: sentencesFromWords(words, LANGUAGES[story.sourceLanguage].uiLocale),
+    words,
     origin: v.origin === "script" ? "script" : "capture",
     scriptVersion: typeof v.scriptVersion === "number" ? v.scriptVersion : undefined,
-    sttLocale: typeof v.sttLocale === "string" ? v.sttLocale.slice(0, 16) : "",
-    provider: typeof v.provider === "string" ? v.provider.slice(0, 16) : "",
+    sttLocale: heard.sttLocale,
+    provider: heard.provider,
   };
 }
 
@@ -79,7 +83,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/stories/[i
     const story = requireStory(sessionId, (await ctx.params).id);
     const body = (await request.json().catch(() => null)) ?? {};
     let contentChanged = false;
-    const oldTakeRef = story.take?.audioRef;
+    const oldTake = story.take;
 
     if (isLanguageId(body.interfaceLanguage)) story.interfaceLanguage = body.interfaceLanguage;
     const privacy = parsePrivacy(body.privacy);
@@ -120,11 +124,14 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/stories/[i
       }
     }
     if ("take" in body) {
-      story.take = body.take === null ? undefined : parseTake(sessionId, body.take);
+      story.take = body.take === null ? undefined : parseTake(sessionId, story, body.take);
       contentChanged = true;
     }
 
-    if (oldTakeRef && oldTakeRef !== story.take?.audioRef) await deleteFile(oldTakeRef).catch(() => undefined);
+    if (oldTake && oldTake.audioRef !== story.take?.audioRef) {
+      await deleteFile(oldTake.audioRef).catch(() => undefined);
+      if (oldTake.videoRef) await deleteFile(oldTake.videoRef).catch(() => undefined);
+    }
     if (contentChanged) story.version += 1;
     return json({ story: storyView(story) });
   } catch (err) {

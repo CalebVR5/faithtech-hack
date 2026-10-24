@@ -3,13 +3,14 @@
 // consent and authorization; renderers take a RenderSpec and return an Asset.
 
 import type { LanguageId } from "./languages";
+import type { TimedWord } from "./timing";
 
 export type AgeGate = "unanswered" | "adult" | "under-18" | "not-sure";
 
 export type NarrationMode = "recorded" | "synthetic" | "none";
 export type FootageMode = "original" | "blurred" | "neutral";
-/** Implemented renderers. "captioned-video" (option B) is planned but not built. */
-export type OutputKind = "card" | "narrated-video";
+/** Option A card, option C narration over a plain background, option B the person's own video. */
+export type OutputKind = "card" | "narrated-video" | "captioned-video";
 
 /** What the person wants kept out of the shared output. These are preferences, not a security assessment. */
 export interface PrivacyPreferences {
@@ -48,14 +49,22 @@ export interface Transcript {
 }
 
 /**
- * The recording used for "My recorded voice" narration. Its segments are the
- * author-reviewed transcript of this take, so captions follow what is audible
- * even when the take differs from the typed story or script.
+ * The recording behind "My recorded voice" or "Video of me". Its words are the
+ * author-reviewed transcript of this take, each aligned to when it is heard,
+ * so captions follow what is audible even when the take differs from the
+ * typed story or script.
  */
 export interface NarrationTake {
+  /** Converted 48 kHz WAV of the take's sound, for narration over a plain background. */
   audioRef: string;
+  /** The original camera recording, kept only for "Video of me". */
+  videoRef?: string;
+  media: "audio" | "video";
   durationMs: number;
+  /** Reviewed sentences, as the author corrected them. */
   segments: Segment[];
+  /** Every reviewed word with its time in the recording. Captions are built from these. */
+  words: TimedWord[];
   origin: "capture" | "script";
   /** Story version whose text was shown in the script reader, for scripted takes. */
   scriptVersion?: number;

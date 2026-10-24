@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileAudio, Keyboard, Mic, NotebookText } from "lucide-react";
+import { FileAudio, Keyboard, Mic, NotebookText, Video } from "lucide-react";
 import { useApp, type PendingTranscript } from "@/components/app-state";
 import { CloudConsent } from "@/components/cloud-consent";
-import { RecorderPanel } from "@/components/recorder";
+import { RecorderPanel, type CaptureMedia } from "@/components/recorder";
 import { ErrorNote } from "@/components/flow/steps-start";
 import { bigButton, checkRow, OptionButton, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,6 +18,7 @@ import { findIdentifyingDetails } from "@/lib/domain/identifying";
 import { LANGUAGE_IDS, LANGUAGES, isLanguageId } from "@/lib/domain/languages";
 import { MAX_RECORDING_SECONDS, MAX_STORY_CHARS } from "@/lib/domain/limits";
 import { conflictsFor } from "@/lib/domain/privacy-guide";
+import { sentencesFromWords } from "@/lib/domain/timing";
 
 export function CaptureStep() {
   const { t, flow, update, go, saveStory, errorText } = useApp();
@@ -26,6 +27,7 @@ export function CaptureStep() {
   const [error, setError] = useState<string | null>(null);
   const lang = LANGUAGES[story.sourceLanguage];
   const voiceConflict = conflictsFor(story.privacy, { kind: "card", capture: "voice" }).includes("voice-captured");
+  const faceConflict = conflictsFor(story.privacy, { kind: "card", capture: "video" }).includes("face-captured");
 
   const setLanguage = async (value: string) => {
     if (!isLanguageId(value)) return;
@@ -103,6 +105,20 @@ export function CaptureStep() {
             go("record");
           }}
         />
+        <OptionButton
+          icon={<Video />}
+          title={t.capture.film}
+          body={t.capture.filmHint(MAX_RECORDING_SECONDS)}
+          onClick={() => {
+            update({ captureMode: "film" });
+            go("record");
+          }}
+        />
+        {faceConflict && (
+          <Alert>
+            <AlertDescription>{t.capture.faceConflict}</AlertDescription>
+          </Alert>
+        )}
         <OptionButton
           icon={<FileAudio />}
           title={t.capture.upload}
@@ -237,34 +253,37 @@ export function WriteStep() {
 }
 
 /** Sends one take for transcription after the person has agreed, then opens the correction screen. */
-export function useTranscribe(purpose: PendingTranscript["purpose"]) {
+export function useTranscribe(purpose: PendingTranscript["purpose"], media: CaptureMedia = "audio") {
   const { flow, update, go, errorText } = useApp();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [awaitingConsent, setAwaitingConsent] = useState<Blob | null>(null);
 
-  const send = async (audio: Blob, scriptText?: string) => {
+  const send = async (recording: Blob, scriptText?: string) => {
     const story = flow.story!;
     setBusy(true);
     setError(null);
     try {
       const form = new FormData();
       form.set("storyId", story.id);
-      form.set("audio", audio, audio instanceof File ? audio.name : "recording");
+      form.set("audio", recording, recording instanceof File ? recording.name : "recording");
       form.set("cloudProcessingAccepted", "true");
       form.set("keep", "true");
       if (flow.sttLocale) form.set("sttLocale", flow.sttLocale);
       if (scriptText) form.set("scriptText", scriptText);
       const result = await api.transcribe(form);
+      const locale = LANGUAGES[story.sourceLanguage].uiLocale;
       update((s) => {
         if (s.pending) URL.revokeObjectURL(s.pending.audioUrl);
         return {
           pending: {
             purpose,
-            audioUrl: URL.createObjectURL(audio),
+            media: result.media,
+            audioUrl: URL.createObjectURL(recording),
             audioRef: result.audioRef,
             durationMs: result.durationMs,
-            segments: result.transcript.segments,
+            // Whole sentences to check, each with the moment it was said.
+            segments: sentencesFromWords(result.transcript.words, locale),
             transcript: result.transcript,
           },
         };
@@ -277,9 +296,10 @@ export function useTranscribe(purpose: PendingTranscript["purpose"]) {
     }
   };
 
-  const submit = (audio: Blob, scriptText?: string) => {
-    if (flow.cloud.transcription) void send(audio, scriptText);
-    else setAwaitingConsent(audio);
+  const submit = (recording: Blob, scriptText?: string) => {
+    // A video always shows the notice: the app keeps footage of the person's face.
+    if (flow.cloud.transcription && media !== "video") void send(recording, scriptText);
+    else setAwaitingConsent(recording);
   };
 
   return { busy, error, awaitingConsent, setAwaitingConsent, send, submit };
@@ -287,10 +307,11 @@ export function useTranscribe(purpose: PendingTranscript["purpose"]) {
 
 export function RecordStep() {
   const { t, flow, go } = useApp();
-  const { busy, error, awaitingConsent, setAwaitingConsent, send, submit } = useTranscribe("capture");
+  const media: CaptureMedia = flow.captureMode === "film" ? "video" : "audio";
+  const { busy, error, awaitingConsent, setAwaitingConsent, send, submit } = useTranscribe("capture", media);
 
   return (
-    <StepShell title={t.record.title} lead={t.record.lead}>
+    <StepShell title={media === "video" ? t.record.filmTitle : t.record.title} lead={t.record.lead}>
       <ul className="flex list-disc flex-col gap-2 pl-5 text-lg">
         {t.write.prompts.map((p) => (
           <li key={p}>{p}</li>
@@ -300,17 +321,24 @@ export function RecordStep() {
         <CloudConsent
           purpose="transcription"
           keepsRecording
+          keepsVideo={media === "video"}
           onAgree={() => {
-            const audio = awaitingConsent;
+            const recording = awaitingConsent;
             setAwaitingConsent(null);
-            void send(audio);
+            void send(recording);
           }}
           onDecline={() => setAwaitingConsent(null)}
         />
       ) : (
-        <RecorderPanel onUse={(audio) => submit(audio)} busy={busy} uploadFirst={flow.captureMode === "upload"} onTypeInstead={() => go("write")} />
+        <RecorderPanel
+          media={media}
+          onUse={(recording) => submit(recording)}
+          busy={busy}
+          uploadFirst={flow.captureMode === "upload"}
+          onTypeInstead={() => go("write")}
+        />
       )}
-      {busy && <p aria-live="polite">{t.record.transcribing}</p>}
+      {busy && <p aria-live="polite">{media === "video" ? t.record.transcribingVideo : t.record.transcribing}</p>}
       {error && <ErrorNote message={error} />}
     </StepShell>
   );
@@ -366,10 +394,14 @@ export function TranscriptStep() {
         : null;
       if (pending.purpose === "capture") {
         await saveStory({ reviewedText: segments.map((s) => s.text.trim()).join(" "), sourceKind: "audio", take });
+        // Someone who just filmed themselves most likely wants that video.
+        if (pending.media === "video") update((s) => ({ choices: { ...s.choices, kind: "captioned-video" } }));
         go("review");
       } else {
         await saveStory({ take });
-        update((s) => ({ choices: { ...s.choices, kind: "narrated-video", narration: "recorded" } }));
+        update((s) => ({
+          choices: { ...s.choices, ...(pending.media === "video" ? { kind: "captioned-video" } : { kind: "narrated-video", narration: "recorded" }) },
+        }));
         go("preview");
       }
     } catch (err) {
@@ -390,8 +422,12 @@ export function TranscriptStep() {
       }
     >
       <div className="flex flex-col gap-2">
-        <span className="font-semibold">{t.transcript.listen}</span>
-        <audio controls src={pending.audioUrl} className="w-full" />
+        <span className="font-semibold">{pending.media === "video" ? t.transcript.watch : t.transcript.listen}</span>
+        {pending.media === "video" ? (
+          <video controls playsInline src={pending.audioUrl} className="mx-auto block max-h-[50vh] w-full max-w-sm rounded-lg bg-black object-contain" />
+        ) : (
+          <audio controls src={pending.audioUrl} className="w-full" />
+        )}
       </div>
       {isMock && (
         <Alert>

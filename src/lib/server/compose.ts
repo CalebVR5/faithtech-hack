@@ -1,16 +1,16 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { chunkSegments, readingPaceSegments, withTexts } from "@/lib/domain/captions";
+import { withTexts } from "@/lib/domain/captions";
+import { buildSlides, paceWords, type TimedWord } from "@/lib/domain/timing";
 import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
 import { CARD_MAX_CHARS, CARD_MAX_TRANSLATED_CHARS, MAX_RENDER_SECONDS } from "@/lib/domain/limits";
 import { OUTPUT_LABELS } from "@/lib/domain/output-labels";
-import { splitSentences } from "@/lib/domain/text";
-import type { Asset, NarrationMode, OutputKind, RenderSpec, Segment, Story } from "@/lib/domain/types";
+import type { Asset, NarrationMode, OutputKind, RenderSpec, Story } from "@/lib/domain/types";
 import { getLanguageProvider } from "@/lib/providers";
 import { LAYOUT_VERSION } from "@/lib/render/ass";
 import { RequestError } from "./http";
-import { renderCardPng, renderNarratedMp4 } from "./render";
+import { renderCardPng, renderFaceMp4, renderNarratedMp4 } from "./render";
 import { assetIdFor, db, getSynthCache, newId, putSynthCache, synthCacheKey } from "./store";
 import { deleteFile, getFile, putFile } from "./temp-store";
 import { reserve } from "./usage";
@@ -66,7 +66,7 @@ async function synthesizeCached(sessionId: string, story: Story, text: string) {
   if (provider.name !== "mock") reserve("ttsChars", text.length);
   const out = await provider.synthesize({ text, language: story.sourceLanguage });
   const stored = await putFile(sessionId, out.audio, out.mimeType);
-  const entry = { audioRef: stored.id, durationMs: out.durationMs, segments: out.segments, voice: out.voice, provider: provider.name };
+  const entry = { audioRef: stored.id, durationMs: out.durationMs, words: out.words, voice: out.voice, provider: provider.name };
   putSynthCache(key, entry);
   return { ...entry, audio: out.audio };
 }
@@ -119,22 +119,36 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
     };
   }
 
-  // Narrated video (option C): neutral background, narration, burned-in captions.
-  let segments: Segment[];
+  // Videos (options B and C). Captions are built from words timed against the
+  // audio actually used, so each slide appears as its first word is spoken.
+  const locale = LANGUAGES[story.sourceLanguage].uiLocale;
+  let words: TimedWord[];
   let durationMs: number;
   let audio: Buffer | undefined;
   let audioRef: string | undefined;
+  let video: Buffer | undefined;
   let narrationVoice: string | undefined;
   let selectedSpans: Array<[number, number]>;
   let excerpt: boolean;
+  const narration: NarrationMode = choices.kind === "captioned-video" ? "recorded" : choices.narration;
 
-  if (choices.narration === "recorded") {
+  if (choices.kind === "captioned-video") {
+    const take = story.take;
+    if (!take?.videoRef) throw new RequestError(409, "no-video", "Record a video of yourself first.");
+    const file = await getFile(sessionId, take.videoRef);
+    if (!file) throw new RequestError(410, "take-expired", "Your video has expired. Please record it again.");
+    // Captions follow the reviewed transcript of what was actually said.
+    video = file.data;
+    words = take.words;
+    durationMs = take.durationMs;
+    selectedSpans = [];
+    excerpt = false;
+  } else if (narration === "recorded") {
     const take = story.take;
     if (!take) throw new RequestError(409, "no-take", "Record your story in your own voice first.");
     const file = await getFile(sessionId, take.audioRef);
     if (!file) throw new RequestError(410, "take-expired", "Your recording has expired. Please record it again.");
-    // Captions follow the reviewed transcript of what was actually said.
-    segments = take.segments;
+    words = take.words;
     durationMs = take.durationMs;
     audio = file.data;
     audioRef = take.audioRef;
@@ -144,48 +158,56 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
     const sel = selectSpan(text, choices.span);
     selectedSpans = [[sel.start, sel.end]];
     excerpt = sel.words !== text.trim();
-    if (choices.narration === "synthetic") {
+    if (narration === "synthetic") {
       if (!choices.cloud.narration) {
         throw new RequestError(403, "narration-consent-needed", "A synthetic voice needs your permission to send your words to the speech service.");
       }
       const synth = await synthesizeCached(sessionId, story, sel.words);
-      segments = synth.segments;
+      words = synth.words;
       durationMs = synth.durationMs;
       audio = synth.audio;
       audioRef = synth.audioRef;
       narrationVoice = synth.voice;
     } else {
-      const paced = readingPaceSegments(splitSentences(sel.words, LANGUAGES[story.sourceLanguage].uiLocale));
-      segments = paced.segments;
-      durationMs = paced.durationMs;
+      ({ words, durationMs } = paceWords(sel.words, locale));
     }
   }
 
   if (durationMs > MAX_RENDER_SECONDS * 1000) {
     throw new RequestError(422, "video-too-long", `Videos can be up to ${MAX_RENDER_SECONDS} seconds. Choose a shorter passage.`);
   }
+  let captions = buildSlides(words, locale, durationMs);
   if (translated) {
-    // Same timings, new words: captions stay timed to the audio actually used.
-    segments = withTexts(segments, await translateAll(segments.map((s) => s.text), story.sourceLanguage, choices.outputLanguage));
+    // Each slide is a whole thought, so it translates as one; it keeps its timing.
+    captions = withTexts(captions, await translateAll(captions.map((c) => c.text), story.sourceLanguage, choices.outputLanguage));
   }
-  const captions = chunkSegments(segments);
-  const file = await renderNarratedMp4({
-    audio,
+  const layout = {
     durationMs,
     captions,
     storyLabel: choices.showStoryLabel ? labels.storyLabel : undefined,
     displayName,
     notes: [
-      choices.narration === "synthetic" && labels.synthetic,
+      narration === "synthetic" && labels.synthetic,
       translated && labels.machineTranslated,
       labels.prototype,
     ].filter((n): n is string => Boolean(n)),
-  });
+  };
+  const file = video ? await renderFaceMp4({ ...layout, video }) : await renderNarratedMp4({ ...layout, audio });
   return {
     file,
     mimeType: "video/mp4",
     durationMs,
-    spec: { ...base, kind: "narrated-video", selectedSpans, excerpt, narration: choices.narration, narrationVoice, audioRef, captions },
+    spec: {
+      ...base,
+      kind: choices.kind,
+      selectedSpans,
+      excerpt,
+      narration,
+      narrationVoice,
+      audioRef,
+      captions,
+      footage: video ? "original" : "neutral",
+    },
   };
 }
 

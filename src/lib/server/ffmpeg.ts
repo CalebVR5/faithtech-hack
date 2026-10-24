@@ -88,6 +88,54 @@ export async function normalizeAudio(input: Buffer, sampleRate = 16_000): Promis
   });
 }
 
+export interface Pause {
+  startMs: number;
+  endMs: number;
+}
+
+/**
+ * Silences in a recording, where speech stops and resumes. The threshold sits
+ * below the recording's own average level, so a noisy phone recording and a
+ * quiet studio one are both read correctly.
+ */
+export async function detectPauses(wav: Buffer): Promise<Pause[]> {
+  return withScratchDir(async (dir) => {
+    const inPath = path.join(dir, "speech.wav");
+    await writeFile(inPath, wav);
+    const levels = await runFfmpeg(["-i", inPath, "-af", "volumedetect", "-f", "null", "-"]);
+    const mean = Number(/mean_volume: (-?[\d.]+) dB/.exec(levels)?.[1] ?? "-25");
+    const threshold = Math.max(-50, Math.min(-25, mean - 16));
+    const log = await runFfmpeg(["-i", inPath, "-af", `silencedetect=noise=${threshold}dB:d=0.18`, "-f", "null", "-"]);
+    const pauses: Pause[] = [];
+    let start: number | null = null;
+    for (const m of log.matchAll(/silence_(start|end): (-?[\d.]+)/g)) {
+      const ms = Math.max(0, Math.round(Number(m[2]) * 1000));
+      if (m[1] === "start") start = ms;
+      else if (start !== null) {
+        pauses.push({ startMs: start, endMs: ms });
+        start = null;
+      }
+    }
+    return pauses;
+  });
+}
+
+export interface MediaInfo {
+  hasVideo: boolean;
+  hasAudio: boolean;
+}
+
+/** Which streams a file really contains, whatever its MIME type claims. */
+export async function probeMedia(input: Buffer): Promise<MediaInfo> {
+  return withScratchDir(async (dir) => {
+    const inPath = path.join(dir, "input");
+    await writeFile(inPath, input);
+    // Decoding zero seconds still prints the stream list.
+    const log = await runFfmpeg(["-i", inPath, "-t", "0", "-f", "null", "-"]);
+    return { hasVideo: /Stream #\S+.*: Video:/.test(log), hasAudio: /Stream #\S+.*: Audio:/.test(log) };
+  });
+}
+
 /**
  * Quotes a filesystem path as a filter option value, for example
  * `subtitles=filename=${toFilterPath(p)}`. Filter strings are unescaped twice:

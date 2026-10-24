@@ -1,8 +1,9 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import type { Asset, Consent, ConsentPurpose, GuardianState, MockSubmission, Segment, Story } from "@/lib/domain/types";
-import { deleteFile } from "./temp-store";
+import type { TimedWord } from "@/lib/domain/timing";
+import type { Asset, Consent, ConsentPurpose, GuardianState, MockSubmission, Story } from "@/lib/domain/types";
+import { deleteFile, ownsFile } from "./temp-store";
 
 // In-memory records for a single-process demo (plan section 7, "Prototype
 // hosting and storage"). Everything resets when the server restarts, and the
@@ -29,8 +30,23 @@ export interface InboxEntry {
 interface SynthCacheEntry {
   audioRef: string;
   durationMs: number;
-  segments: Segment[];
+  words: TimedWord[];
   voice: string;
+  provider: string;
+}
+
+/**
+ * What the speech service heard in a kept recording, with word times. Saved
+ * on the server so a reviewed transcript is always aligned against the real
+ * recording, never against timings sent by the browser.
+ */
+export interface HeardTake {
+  sessionId: string;
+  words: TimedWord[];
+  durationMs: number;
+  media: "audio" | "video";
+  videoRef?: string;
+  sttLocale: string;
   provider: string;
 }
 
@@ -40,6 +56,8 @@ interface Db {
   consents: Consent[];
   inbox: Map<string, InboxEntry>;
   synthCache: Map<string, SynthCacheEntry>;
+  /** Keyed by the take's audioRef. */
+  heard: Map<string, HeardTake>;
   inboxTokens: Set<string>;
 }
 
@@ -50,8 +68,11 @@ export const db: Db = (g.__testimonyDb ??= {
   consents: [],
   inbox: new Map(),
   synthCache: new Map(),
+  heard: new Map(),
   inboxTokens: new Set(),
 });
+// Older dev-server instances created the store before `heard` existed.
+db.heard ??= new Map();
 
 export function newId(): string {
   return randomUUID();
@@ -141,7 +162,11 @@ export async function deleteStory(storyId: string): Promise<void> {
   const story = db.stories.get(storyId);
   if (!story) return;
   const refs = new Set<string>();
-  if (story.take) refs.add(story.take.audioRef);
+  if (story.take) {
+    refs.add(story.take.audioRef);
+    if (story.take.videoRef) refs.add(story.take.videoRef);
+  }
+
   for (const asset of [...db.assets.values()].filter((a) => a.storyId === storyId)) {
     if (asset.fileRef) refs.add(asset.fileRef);
     if (asset.spec.audioRef) refs.add(asset.spec.audioRef);
@@ -153,6 +178,7 @@ export async function deleteStory(storyId: string): Promise<void> {
       db.synthCache.delete(key);
     }
   }
+  for (const ref of refs) db.heard.delete(ref);
   const now = Date.now();
   for (const c of db.consents) if (c.storyId === storyId && c.revokedAt === undefined) c.revokedAt = now;
   for (const entry of db.inbox.values()) {
@@ -169,6 +195,19 @@ export function storyView(story: Story): StoryView {
   const view: Partial<Story> = { ...story };
   delete view.sessionId;
   return view as StoryView;
+}
+
+/** Keeps what was heard in a recording, and drops entries whose recording has expired. */
+export function rememberHeard(audioRef: string, heard: HeardTake): void {
+  for (const [ref, h] of db.heard) if (!ownsFile(h.sessionId, ref)) db.heard.delete(ref);
+  db.heard.set(audioRef, heard);
+}
+
+/** What was heard in this session's recording, or null if it expired or isn't theirs. */
+export function heardFor(sessionId: string, audioRef: unknown): HeardTake | null {
+  if (typeof audioRef !== "string") return null;
+  const heard = db.heard.get(audioRef);
+  return heard && heard.sessionId === sessionId && ownsFile(sessionId, audioRef) ? heard : null;
 }
 
 export function synthCacheKey(storyId: string, language: string, voice: string, text: string): string {

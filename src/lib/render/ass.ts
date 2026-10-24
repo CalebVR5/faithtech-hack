@@ -60,27 +60,39 @@ interface Style {
   color: string;
   bold?: boolean;
   spacing?: number;
-  /** Numpad alignment: 1 bottom-left, 5 middle-center, 7 top-left, 8 top-center. */
+  /** Numpad alignment: 1 bottom-left, 2 bottom-center, 5 middle-center, 7 top-left, 8 top-center. */
   align: number;
+  /** An opaque box behind each line, for text over camera footage. */
+  box?: { color: string; opacity: number; padding: number };
   marginL: number;
   marginR: number;
   marginV: number;
 }
 
+/** "#RRGGBB" with 0–1 opacity → ASS "&HAABBGGRR" (ASS alpha counts transparency). */
+function assColorAlpha(hex: string, opacity: number): string {
+  const alpha = Math.round((1 - opacity) * 255).toString(16).padStart(2, "0");
+  return assColor(hex).replace("&H00", `&H${alpha}`.toUpperCase());
+}
+
 function styleLine(s: Style): string {
   const c = assColor(s.color);
+  const box = s.box ? assColorAlpha(s.box.color, s.box.opacity) : "&H00000000";
   return [
     `Style: ${s.name}`,
     s.font,
     s.size,
     c,
     c,
-    "&H00000000",
-    "&H00000000",
+    box,
+    box,
     s.bold ? -1 : 0,
     0, 0, 0, 100, 100,
     s.spacing ?? 0,
-    0, 1, 0, 0,
+    0,
+    s.box ? 3 : 1,
+    s.box ? s.box.padding : 0,
+    0,
     s.align,
     s.marginL,
     s.marginR,
@@ -240,4 +252,42 @@ export function videoAss(input: VideoLayoutInput): string {
     events.push({ layer: captionLayer, style: "Caption", startMs: c.startMs, endMs: c.endMs, text: escapeAssText(c.text) });
   }
   return document({ width, height: height }, styles, events);
+}
+
+/**
+ * The person's own video (option B): footage fills the 9:16 frame, labels sit
+ * at the top and captions on a teal box above the strip where sharing apps
+ * draw their own controls.
+ */
+export function faceVideoAss(input: VideoLayoutInput): string {
+  const { width, height } = VIDEO_SIZE;
+  const cx = width / 2;
+  const box = { color: PALETTE.background, opacity: 0.82, padding: 12 };
+  const styles: Style[] = [
+    { name: "Label", font: SANS, size: 22, color: PALETTE.accent, bold: true, spacing: 3, align: 8, marginL: 40, marginR: 40, marginV: 0, box },
+    { name: "Note", font: SANS, size: 19, color: PALETTE.muted, align: 8, marginL: 40, marginR: 40, marginV: 0, box },
+    { name: "Name", font: SANS, size: 26, color: PALETTE.accent, bold: true, align: 8, marginL: 40, marginR: 40, marginV: 0, box },
+    { name: "Caption", font: SANS, size: 40, color: PALETTE.text, bold: true, align: 2, marginL: 50, marginR: 50, marginV: 230, box: { ...box, padding: 14 } },
+  ];
+  const whole = { startMs: 0, endMs: input.durationMs };
+  const events: Event[] = [];
+  let layer = 0;
+  let y = 60;
+  if (input.storyLabel) {
+    events.push({ ...whole, layer: layer++, style: "Label", text: at(cx, y, input.storyLabel) });
+    y += 46;
+  }
+  if (input.displayName) {
+    events.push({ ...whole, layer: layer++, style: "Name", text: at(cx, y, `— ${input.displayName}`) });
+    y += 48;
+  }
+  for (const note of input.notes) {
+    events.push({ ...whole, layer: layer++, style: "Note", text: at(cx, y, note) });
+    y += 40;
+  }
+  const captionLayer = layer;
+  for (const c of input.captions) {
+    events.push({ layer: captionLayer, style: "Caption", startMs: c.startMs, endMs: c.endMs, text: escapeAssText(c.text) });
+  }
+  return document({ width, height }, styles, events);
 }

@@ -13,11 +13,14 @@ import { Button } from "@/components/ui/button";
 export function CloudConsent({
   purpose,
   keepsRecording,
+  keepsVideo,
   onAgree,
   onDecline,
 }: {
   purpose: CloudPurpose;
   keepsRecording?: boolean;
+  /** A camera recording: the app keeps the video itself; only its sound is sent. */
+  keepsVideo?: boolean;
   onAgree: () => void;
   onDecline: () => void;
 }) {
@@ -33,7 +36,11 @@ export function CloudConsent({
       </h2>
       <p>{t.cloud.sentence(what, service, why)}</p>
       {provider !== "gcp" && <p className="text-sm text-muted-foreground">{t.cloud.mockNote}</p>}
-      {keepsRecording && <p className="text-sm">{t.cloud.keepNote}</p>}
+      {keepsVideo ? (
+        <p className="text-sm">{t.cloud.keepVideoNote}</p>
+      ) : (
+        keepsRecording && <p className="text-sm">{t.cloud.keepNote}</p>
+      )}
       <p className="text-sm text-muted-foreground">{t.cloud.retention}</p>
       <p className="text-sm text-muted-foreground">{t.cloud.alternative}</p>
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

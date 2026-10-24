@@ -41,6 +41,8 @@ Tokens live in [src/app/globals.css](src/app/globals.css). Rendered cards and vi
 - **In the app** ([waterline.tsx](src/components/waterline.tsx)): progress through the four stages is a teal wave up to the current stage and a still dashed line beyond it. When a stage completes, the water advances once (700ms ease-out); with reduced motion it doesn't animate. On phones only the current stage is named ("2/4 · …").
 - **On exports**: a gold wave drawn with libass vector shapes. On cards, the storyteller's words rest just above the waterline, with name and labels below it, so open space reads as sky rather than a gap. On videos, the waterline sits below the captions.
 
+**Video of me** (the person's own footage) keeps the face and room as the subject: labels and captions sit on 82%-opaque teal boxes for legibility over any picture, captions above the bottom strip where sharing apps draw controls, and no waterline over the footage. Footage is fitted and padded in teal, never cropped.
+
 Motion is limited to state changes. There's no decorative or looping animation.
 
 ## Checks

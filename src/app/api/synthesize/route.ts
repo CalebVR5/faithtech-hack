@@ -1,4 +1,5 @@
-import { isLanguageId } from "@/lib/domain/languages";
+import { isLanguageId, LANGUAGES } from "@/lib/domain/languages";
+import { sentencesFromWords } from "@/lib/domain/timing";
 import { MAX_STORY_CHARS } from "@/lib/domain/limits";
 import type { SynthesisResult } from "@/lib/domain/types";
 import { getLanguageProvider } from "@/lib/providers";
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
       audioRef: stored.id,
       mimeType: out.mimeType,
       durationMs: out.durationMs,
-      segments: out.segments,
+      segments: sentencesFromWords(out.words, LANGUAGES[language].uiLocale),
       language,
       voice: out.voice,
       provider: provider.name,

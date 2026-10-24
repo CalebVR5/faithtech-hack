@@ -5,12 +5,18 @@
 
 import type { NarrationMode, OutputKind, PrivacyPreferences } from "./types";
 
-export type FormatChoice = { kind: "card" } | { kind: "narrated-video"; narration: NarrationMode };
+export type FormatChoice = { kind: "card" } | { kind: "captioned-video" } | { kind: "narrated-video"; narration: NarrationMode };
 
-export type Conflict = "recorded-voice-kept" | "name-shown" | "voice-captured";
+export type Conflict =
+  | "recorded-voice-kept"
+  | "name-shown"
+  | "voice-captured"
+  | "face-shown"
+  | "surroundings-shown"
+  | "face-captured";
 
 export function formatKey(choice: FormatChoice): string {
-  return choice.kind === "card" ? "card" : `video-${choice.narration}`;
+  return choice.kind === "narrated-video" ? `video-${choice.narration}` : choice.kind;
 }
 
 /** Recommended formats, most suitable first. */
@@ -22,8 +28,11 @@ export function recommendFormats(p: PrivacyPreferences): FormatChoice[] {
   if (p.hideVoice) {
     return [{ kind: "card" }, { kind: "narrated-video", narration: "synthetic" }, { kind: "narrated-video", narration: "none" }];
   }
-  // Personal voice first when the person is comfortable including it (plan section 1).
-  return [{ kind: "narrated-video", narration: "recorded" }, { kind: "card" }, { kind: "narrated-video", narration: "synthetic" }];
+  if (p.hideFace || p.hideSurroundings) {
+    return [{ kind: "narrated-video", narration: "recorded" }, { kind: "card" }, { kind: "narrated-video", narration: "synthetic" }];
+  }
+  // Most personal first when the person is comfortable including face and voice (plan section 1).
+  return [{ kind: "captioned-video" }, { kind: "narrated-video", narration: "recorded" }, { kind: "card" }];
 }
 
 export function isRecommended(p: PrivacyPreferences, choice: FormatChoice): boolean {
@@ -33,12 +42,16 @@ export function isRecommended(p: PrivacyPreferences, choice: FormatChoice): bool
 /** Conflicts to explain before applying a choice. */
 export function conflictsFor(
   p: PrivacyPreferences,
-  choice: { kind: OutputKind; narration?: NarrationMode; showName?: boolean; capture?: "voice" },
+  choice: { kind: OutputKind; narration?: NarrationMode; showName?: boolean; capture?: "voice" | "video" },
 ): Conflict[] {
   const out: Conflict[] = [];
-  if (p.hideVoice && choice.kind === "narrated-video" && choice.narration === "recorded") out.push("recorded-voice-kept");
+  const ownVideo = choice.kind === "captioned-video";
+  if (p.hideVoice && (ownVideo || (choice.kind === "narrated-video" && choice.narration === "recorded"))) out.push("recorded-voice-kept");
+  if (p.hideFace && ownVideo) out.push("face-shown");
+  if (p.hideSurroundings && ownVideo) out.push("surroundings-shown");
   if ((p.hideName || p.notSure) && choice.showName) out.push("name-shown");
-  if (p.hideVoice && choice.capture === "voice") out.push("voice-captured");
+  if (p.hideVoice && choice.capture) out.push("voice-captured");
+  if (p.hideFace && choice.capture === "video") out.push("face-captured");
   return out;
 }
 

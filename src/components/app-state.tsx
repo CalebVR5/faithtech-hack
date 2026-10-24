@@ -5,6 +5,7 @@ import { MESSAGES, type Messages } from "@/i18n";
 import { ApiError, api, type AssetState, type StoryView } from "@/lib/client/api";
 import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
 import { needsGuardian } from "@/lib/domain/policy";
+import { defaultShowName, recommendFormats } from "@/lib/domain/privacy-guide";
 import type { NarrationMode, OutputKind, Segment, Transcript } from "@/lib/domain/types";
 
 // Unsaved drafts live in memory only (plan section 6): nothing here is written
@@ -30,6 +31,8 @@ export type Step =
 
 export interface PendingTranscript {
   purpose: "capture" | "script";
+  media: "audio" | "video";
+  /** Local playback URL for the recording (sound or video). */
   audioUrl: string;
   audioRef?: string;
   durationMs: number;
@@ -56,7 +59,7 @@ export interface FlowState {
   answers: [string, string, string];
   ownWay: boolean;
   ownText: string;
-  captureMode: "speak" | "upload";
+  captureMode: "speak" | "upload" | "film";
   sttLocale: string | null;
   pending: PendingTranscript | null;
   choices: OutputChoices;
@@ -153,9 +156,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : story.reviewedText.trim()
           ? "review"
           : "capture";
+    // Start from the format that fits: their own video if they filmed one, else the guide's first suggestion.
+    const first = recommendFormats(story.privacy)[0];
+    const choices: OutputChoices = story.take?.videoRef
+      ? { ...INITIAL.choices, kind: "captioned-video", showName: defaultShowName(story.privacy) }
+      : {
+          ...INITIAL.choices,
+          kind: first.kind,
+          narration: first.kind === "narrated-video" ? first.narration : story.privacy.hideVoice ? "synthetic" : "recorded",
+          showName: defaultShowName(story.privacy),
+        };
     setFlow((s) => {
       if (s.pending) URL.revokeObjectURL(s.pending.audioUrl);
-      return { ...INITIAL, story, step, history: ["welcome"] };
+      return { ...INITIAL, story, step, choices, history: ["welcome"] };
     });
   }, []);
 

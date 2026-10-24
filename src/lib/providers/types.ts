@@ -1,5 +1,6 @@
 import type { LanguageId } from "@/lib/domain/languages";
-import type { Segment, Transcript } from "@/lib/domain/types";
+import type { TimedWord } from "@/lib/domain/timing";
+import type { Transcript } from "@/lib/domain/types";
 
 // The three managed-API operations (plan section 7). Story text and media are
 // passed as data; nothing a provider returns is allowed to grant a permission.
@@ -35,8 +36,8 @@ export interface SynthesizeOutput {
   audio: Buffer;
   mimeType: "audio/wav";
   durationMs: number;
-  /** One caption segment per sentence, timed against this audio. */
-  segments: Segment[];
+  /** Every word of the text with the time it is spoken in this audio. */
+  words: TimedWord[];
   voice: string;
 }
 

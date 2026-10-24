@@ -66,11 +66,11 @@ The storyteller's flow (plan section 3), end to end:
 1. **Entry:** prototype notice, interface language by name (no flags), age question with "I'm not sure".
 2. **Guardian gate:** under-18 and not-sure stories can't be written, recorded, rendered, exported or submitted until a *simulated* guardian approves. The server enforces this on every content route, not just the UI. A decline is final for that story.
 3. **Privacy guide:** face / voice / name / surroundings / not sure. Recommends formats and explains conflicts; never switches to a more revealing option by itself.
-4. **Capture:** type with three optional prompts or "my own way"; record (MediaRecorder, detected MIME type, 60-second hard stop, retry, playback); upload an audio file; or load a fabricated sample. Story language is separate from interface language, with regional transcription accents (es-MX, es-PE, fr-CA…).
+4. **Capture:** type with three optional prompts or "my own way"; record your voice or **film yourself** (camera on to frame, then record; MediaRecorder with detected MIME type, 60-second hard stop, retry, playback); upload an audio or video file; or load a fabricated sample. Story language is separate from interface language, with regional transcription accents (es-MX, es-PE, fr-CA…).
 5. **Cloud consent** before any transcription, translation or synthetic voice: names the service, what's sent, why, retention and alternatives. The server refuses requests without it.
-6. **Transcript correction:** listen back, edit each timed part, uncertain words highlighted and must be checked, warning when edits drift far from the recording.
+6. **Transcript correction:** listen back (or watch, for video), edit each sentence, uncertain words highlighted and must be checked, warning when edits drift far from the recording.
 7. **Story review:** edit text, optional display name, and flags for possible names, places, dates and family members. These are an aid, and the text is never edited automatically.
-8. **Formats:** **Option A** story card (1080×1350 PNG) and **Option C** narrated video (720×1280 MP4) with *my recorded voice*, *a synthetic voice* or *no voice*. Captioned camera footage (Option B) and face blur are listed as "not in this prototype".
+8. **Formats:** **Option B** *Video of me*: the person's own camera video (720×1280 MP4) with burned-in captions, fitted into 9:16 and padded rather than cropped. **Option A** story card (1080×1350 PNG). **Option C** narrated video over a plain background with *my recorded voice*, *a synthetic voice* or *no voice*. Face blur is listed as "not in this prototype".
 9. **Script reader:** the approved text in large adjustable blocks, record/retry/playback, then the take is transcribed and reviewed so captions follow what was actually said.
 10. **Preview and approval:** pick one contiguous passage by sentence, choose the on-screen language (machine translation is labeled), show or hide name and label, render the **actual export file**, see "What will be included", and approve that exact version. Any change makes a new version that needs approval again.
 11. **Share:** feedback / finished / keep-a-copy intentions, an editable accompanying message kept separate from the story, WhatsApp and Instagram guided handoff with native share where supported, download, copy text, and "can't find the file?" help. It never claims anything was sent or posted.
@@ -81,7 +81,7 @@ The storyteller's flow (plan section 3), end to end:
 |---|---|
 | Shared contract: Story, NarrationTake, RenderSpec, Asset, Consent, MockSubmission | [`src/lib/domain/types.ts`](src/lib/domain/types.ts) |
 | `authorize()`: the single export/submission check (exact version, stale story, guardian, separate inbox consent) and `captureAllowed()` | [`src/lib/domain/policy.ts`](src/lib/domain/policy.ts) |
-| Caption chunking and pacing, sentence offsets, identifying-detail flags, privacy recommendations, burned-in labels in four languages | [`src/lib/domain/`](src/lib/domain) |
+| Word-timed captions ([`timing.ts`](src/lib/domain/timing.ts)), sentence offsets, identifying-detail flags, privacy recommendations, burned-in labels in four languages | [`src/lib/domain/`](src/lib/domain) |
 | Card and video layouts as ASS documents (libass does wrapping with the bundled fonts) | [`src/lib/render/ass.ts`](src/lib/render/ass.ts) |
 | FFmpeg renderers and the server-side composer (builds the RenderSpec from the stored story, never from client-sent captions) | [`src/lib/server/render.ts`](src/lib/server/render.ts), [`src/lib/server/compose.ts`](src/lib/server/compose.ts) |
 | In-memory story/asset/consent/inbox store, ownership guards | [`src/lib/server/store.ts`](src/lib/server/store.ts), [`src/lib/server/guards.ts`](src/lib/server/guards.ts) |
@@ -99,8 +99,8 @@ All routes are session-owned (anonymous `sid` cookie). Another session gets `404
 |---|---|
 | `GET`/`POST /api/stories` · `GET`/`PATCH`/`DELETE /api/stories/:id` | List this session's stories (so a reload or "Start a new story" can continue or delete them); create after the age question; update text, take, name, language or privacy (content edits bump the version); delete everything |
 | `POST /api/stories/:id/guardian` | **Test scenario:** simulated guardian decision that unlocks capture |
-| `POST /api/transcribe` | multipart `audio`, `storyId`, `cloudProcessingAccepted`, optional `sttLocale`, `keep` (keep a converted copy ≤ 1 h for narration), `scriptText` (mock only) |
-| `POST /api/render` | `storyId`, `kind` (`card`/`narrated-video`), `narration`, `outputLanguage`, `span`, `showName`, `showStoryLabel`, `cloud` consents. Returns the asset and its permission state |
+| `POST /api/transcribe` | multipart `audio` (audio or camera video; only the sound goes to the speech service), `storyId`, `cloudProcessingAccepted`, optional `sttLocale`, `keep` (keep a converted copy ≤ 1 h for narration), `scriptText` (mock only) |
+| `POST /api/render` | `storyId`, `kind` (`card`/`narrated-video`/`captioned-video`), `narration`, `outputLanguage`, `span`, `showName`, `showStoryLabel`, `cloud` consents. Returns the asset and its permission state |
 | `GET /api/assets/:id` | In-app preview of the exact file (`?state=1` for permission state) |
 | `POST /api/approve` | Consent for one asset version and purpose (`personal-output` or `baptize-review`) |
 | `POST /api/guardian-simulation` | **Test scenario:** guardian decision for one asset version and purpose |
@@ -118,14 +118,25 @@ All routes are session-owned (anonymous `sid` cookie). Another session gets `404
 
 - **Live microphone recording and file upload through the UI** (including the script reader), in desktop browsers and on iOS Safari and Android Chrome. The recorder, MIME detection and upload checks are built and the server side is tested with generated audio, but no one has recorded or uploaded through the UI yet.
 - **Native share sheets** (WhatsApp/Instagram targets) on real phones, and the exact Instagram/WhatsApp steps in the current apps.
-- **Google Cloud calls** (no key yet), including SSML timepoints for each voice.
+- **Camera recording on real phones** (the desktop browser pane has no camera). The video path was tested with a generated portrait video carrying real speech, through Google Speech-to-Text.
 - **Interface translations** are drafts. Consent and privacy wording in all four languages needs native-speaker and legal review before any real-data use.
+
+## How captions stay in sync
+
+Every caption is built from **words with their own times in the audio actually used**, in [`src/lib/domain/timing.ts`](src/lib/domain/timing.ts):
+
+- **Synthetic voice:** Google Text-to-Speech returns a timing mark for every word (long stories are synthesized in sentence batches under Google's 5,000-byte limit and joined).
+- **Your recorded voice or video:** Speech-to-Text word times drift by a word or a few hundred milliseconds. The server finds the recording's real pauses (FFmpeg `silencedetect`, threshold relative to the recording's own loudness), snaps each pause to the nearest punctuated word boundary, and spreads the words between pauses over the time actually spoken. The author's corrected transcript is then aligned word by word to those times, so edits keep their timing.
+- **Slides are whole thoughts:** a slide never crosses a sentence boundary. Long sentences split at a comma, a pause or a conjunction ("and", "pero", "mais", "mas"…) before a plain word break; two very short sentences may share a slide. Each slide appears 120 ms before its first word and stays until the next begins (or briefly after its last word).
+- **Translated captions** translate each slide as a unit and keep its timing.
+
+Checked on 2026-10-24 against real Google audio: synthetic-voice slides start within about 10–90 ms of the sound (measured with FFmpeg's silence detector), and recorded slides that follow a pause start within 10 ms of the speaker resuming.
 
 ## Next steps
 
-- Run the spike checklist above with a real key, then record a take per language through the UI and check caption timing by eye.
+- Film a real take per language on phones and check caption timing by eye, especially Peruvian Spanish (it uses the older transcription model).
 - Try the full flow on the team's iPhone and Android phones through the tunnel; adjust the WhatsApp/Instagram instructions to what the apps actually show.
-- Stretch (plan section 4): Option B captioned original video, then face blur, only once A and C are solid on phones.
+- Stretch (plan section 4): face blur for Option B.
 
 ## Credits
 

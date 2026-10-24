@@ -21,6 +21,18 @@ export function wavDurationMs(wav: Buffer): number {
   throw new Error("WAV file has no data chunk");
 }
 
+/** The PCM samples of a WAV file (its data chunk), for joining clips with the same format. */
+export function wavData(wav: Buffer): Buffer {
+  let offset = 12;
+  while (offset + 8 <= wav.length) {
+    const id = wav.toString("ascii", offset, offset + 4);
+    const size = wav.readUInt32LE(offset + 4);
+    if (id === "data") return wav.subarray(offset + 8, Math.min(wav.length, offset + 8 + size));
+    offset += 8 + size + (size % 2);
+  }
+  throw new Error("WAV file has no data chunk");
+}
+
 /** A quiet 220 Hz tone, so mock narration is audibly a placeholder rather than silence. */
 export function toneWav(durationMs: number, sampleRate: number): Buffer {
   const samples = Math.round((durationMs / 1000) * sampleRate);

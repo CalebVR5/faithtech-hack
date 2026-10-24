@@ -13,8 +13,9 @@ import "server-only";
 import { LANGUAGES } from "@/lib/domain/languages";
 import { UNCERTAIN_WORD_CONFIDENCE } from "@/lib/domain/limits";
 import { splitSentences } from "@/lib/domain/text";
+import { tokenize, type TimedWord } from "@/lib/domain/timing";
 import type { Segment, Transcript, TranscriptWord } from "@/lib/domain/types";
-import { wavDurationMs } from "@/lib/media/wav";
+import { wavData, wavDurationMs, wavHeader } from "@/lib/media/wav";
 import {
   ProviderError,
   type LanguageProvider,
@@ -119,6 +120,13 @@ interface SynthesizeResponse {
   timepoints?: Array<{ markName: string; timeSeconds: number }>;
 }
 
+/** Google's limit is 5,000 bytes of SSML per request; leave room for escaping. */
+const SSML_BYTE_BUDGET = 4500;
+
+function ssmlFor(tokens: string[]): string {
+  return `<speak>${tokens.map((w, i) => `<mark name="${i}"/>${escapeSsml(w)}`).join(" ")}</speak>`;
+}
+
 function escapeSsml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -192,34 +200,63 @@ export const gcpProvider: LanguageProvider = {
 
   async synthesize({ text, language }: SynthesizeInput): Promise<SynthesizeOutput> {
     const config = LANGUAGES[language];
-    const sentences = splitSentences(text, config.uiLocale);
-    // A mark before each sentence gives caption start times against the real audio.
-    const ssml = `<speak>${sentences.map((s, i) => `<mark name="s${i}"/>${escapeSsml(s)}`).join(" ")}</speak>`;
-
-    const json = await post<SynthesizeResponse>(
-      "https://texttospeech.googleapis.com/v1beta1/text:synthesize",
-      {
-        input: { ssml },
-        voice: { languageCode: config.ttsLocale, name: config.ttsVoice },
-        audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: TTS_SAMPLE_RATE },
-        enableTimePointing: ["SSML_MARK"],
-      },
-      "Text-to-Speech",
-    );
-
-    const audio = Buffer.from(json.audioContent, "base64");
-    const durationMs = wavDurationMs(audio);
-    const starts = new Map((json.timepoints ?? []).map((t) => [t.markName, Math.round(t.timeSeconds * 1000)]));
-    if (starts.size !== sentences.length) {
-      // Fail rather than guess: captions must follow the audio actually used.
-      throw new ProviderError("Text-to-Speech did not return caption timing for this voice.");
+    // A mark before every word gives each one its exact time in the real audio,
+    // so captions change when the voice does. Whole sentences are batched to stay
+    // under Google's 5,000-byte input limit, then the audio is joined.
+    const batches: string[][] = [];
+    let current: string[] = [];
+    const fits = (tokens: string[]) => Buffer.byteLength(ssmlFor(tokens)) <= SSML_BYTE_BUDGET;
+    for (const sentence of splitSentences(text, config.uiLocale)) {
+      const tokens = tokenize(sentence);
+      if (fits([...current, ...tokens])) {
+        current.push(...tokens);
+        continue;
+      }
+      if (current.length) batches.push(current);
+      current = [];
+      // A single run-on sentence over the limit is split between words.
+      for (const token of tokens) {
+        if (current.length && !fits([...current, token])) {
+          batches.push(current);
+          current = [];
+        }
+        current.push(token);
+      }
     }
-    const segments = sentences.map((s, i) => ({
-      text: s,
-      startMs: starts.get(`s${i}`) ?? 0,
-      endMs: i === sentences.length - 1 ? durationMs : (starts.get(`s${i + 1}`) ?? durationMs),
-    }));
+    if (current.length) batches.push(current);
 
-    return { audio, mimeType: "audio/wav", durationMs, segments, voice: config.ttsVoice };
+    const pcm: Buffer[] = [];
+    const words: TimedWord[] = [];
+    let offsetMs = 0;
+    for (const tokens of batches) {
+      const json = await post<SynthesizeResponse>(
+        "https://texttospeech.googleapis.com/v1beta1/text:synthesize",
+        {
+          input: { ssml: ssmlFor(tokens) },
+          voice: { languageCode: config.ttsLocale, name: config.ttsVoice },
+          audioConfig: { audioEncoding: "LINEAR16", sampleRateHertz: TTS_SAMPLE_RATE },
+          enableTimePointing: ["SSML_MARK"],
+        },
+        "Text-to-Speech",
+      );
+      const audio = Buffer.from(json.audioContent, "base64");
+      const durationMs = wavDurationMs(audio);
+      const starts = new Map((json.timepoints ?? []).map((t) => [t.markName, Math.round(t.timeSeconds * 1000)]));
+      if (starts.size !== tokens.length) {
+        // Fail rather than guess: captions must follow the audio actually used.
+        throw new ProviderError("Text-to-Speech did not return caption timing for this voice.");
+      }
+      tokens.forEach((token, i) => {
+        const startMs = starts.get(String(i)) ?? 0;
+        const endMs = i === tokens.length - 1 ? durationMs : (starts.get(String(i + 1)) ?? durationMs);
+        words.push({ text: token, startMs: offsetMs + startMs, endMs: offsetMs + endMs });
+      });
+      pcm.push(wavData(audio));
+      offsetMs += durationMs;
+    }
+
+    const data = Buffer.concat(pcm);
+    const audio = Buffer.concat([wavHeader(data.length, TTS_SAMPLE_RATE), data]);
+    return { audio, mimeType: "audio/wav", durationMs: wavDurationMs(audio), words, voice: config.ttsVoice };
   },
 };

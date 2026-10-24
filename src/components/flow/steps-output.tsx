@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AArrowDown, AArrowUp, BadgeCheck, Clapperboard, Image as ImageIcon, Mic, MicOff, Volume2 } from "lucide-react";
+import { AArrowDown, AArrowUp, BadgeCheck, Clapperboard, Image as ImageIcon, Mic, MicOff, Video, Volume2 } from "lucide-react";
 import { useApp, type OutputChoices } from "@/components/app-state";
 import { CloudConsent } from "@/components/cloud-consent";
 import { DeleteStory } from "@/components/flow/delete-story";
@@ -26,6 +26,9 @@ export function FormatStep() {
   const story = flow.story!;
   const { kind, narration } = flow.choices;
   const [reRecord, setReRecord] = useState(!story.take);
+  const hasVideo = Boolean(story.take?.videoRef);
+  const [reFilm, setReFilm] = useState(!hasVideo);
+  const ownVideoConflicts = conflictsFor(story.privacy, { kind: "captioned-video" });
   const suggested = <Badge variant="secondary">{t.format.suggested}</Badge>;
   const setChoice = (patch: Partial<OutputChoices>) => update((s) => ({ choices: { ...s.choices, ...patch } }));
   const voiceConflict = conflictsFor(story.privacy, { kind, narration }).includes("recorded-voice-kept");
@@ -38,7 +41,8 @@ export function FormatStep() {
   if (story.privacy.hideVoice) voices.push(voices.shift()!);
 
   const next = () => {
-    if (kind === "narrated-video" && narration === "recorded" && (reRecord || !story.take)) go("script");
+    if (kind === "captioned-video" && (reFilm || !hasVideo)) go("script");
+    else if (kind === "narrated-video" && narration === "recorded" && (reRecord || !story.take)) go("script");
     else go("preview");
   };
 
@@ -52,6 +56,14 @@ export function FormatStep() {
       }
     >
       <div className="flex flex-col gap-3" role="group" aria-label={t.format.title}>
+        <OptionButton
+          icon={<Video />}
+          title={t.format.faceVideo}
+          body={t.format.faceVideoBody}
+          selected={kind === "captioned-video"}
+          badge={isRecommended(story.privacy, { kind: "captioned-video" }) && suggested}
+          onClick={() => setChoice({ kind: "captioned-video" })}
+        />
         <OptionButton
           icon={<ImageIcon />}
           title={t.format.card}
@@ -68,6 +80,32 @@ export function FormatStep() {
           onClick={() => setChoice({ kind: "narrated-video" })}
         />
       </div>
+
+      {kind === "captioned-video" && (
+        <div className="flex flex-col gap-3">
+          {ownVideoConflicts.includes("face-shown") && (
+            <Alert>
+              <AlertDescription>{t.format.conflictFace}</AlertDescription>
+            </Alert>
+          )}
+          {ownVideoConflicts.includes("surroundings-shown") && (
+            <Alert>
+              <AlertDescription>{t.format.conflictSurroundings}</AlertDescription>
+            </Alert>
+          )}
+          {ownVideoConflicts.includes("recorded-voice-kept") && (
+            <Alert>
+              <AlertDescription>{t.format.conflictVoice}</AlertDescription>
+            </Alert>
+          )}
+          {hasVideo && (
+            <div className="flex flex-col gap-2 pl-2" role="radiogroup">
+              <OptionButton title={t.format.useCaptureVideo} selected={!reFilm} onClick={() => setReFilm(false)} />
+              <OptionButton title={t.format.recordVideo} selected={reFilm} onClick={() => setReFilm(true)} />
+            </div>
+          )}
+        </div>
+      )}
 
       {kind === "narrated-video" && (
         <div className="flex flex-col gap-3" role="group" aria-labelledby="voice-title">
@@ -117,11 +155,12 @@ export function ScriptStep() {
   const [size, setSize] = useState(1);
   const locale = LANGUAGES[story.sourceLanguage].uiLocale;
   const sentences = useMemo(() => sentenceSpans(story.reviewedText, locale), [story.reviewedText, locale]);
-  const { busy, error, awaitingConsent, setAwaitingConsent, send, submit } = useTranscribe("script");
+  const media = flow.choices.kind === "captioned-video" ? "video" : "audio";
+  const { busy, error, awaitingConsent, setAwaitingConsent, send, submit } = useTranscribe("script", media);
   const sizes = ["text-lg", "text-xl", "text-2xl", "text-3xl"];
 
   return (
-    <StepShell title={t.script.title} lead={t.script.lead}>
+    <StepShell title={media === "video" ? t.script.filmTitle : t.script.title} lead={t.script.lead}>
       <div className="flex gap-2">
         <Button variant="outline" size="icon-lg" aria-label={t.script.smaller} onClick={() => setSize((s) => Math.max(0, s - 1))} disabled={size === 0}>
           <AArrowDown aria-hidden />
@@ -140,17 +179,18 @@ export function ScriptStep() {
         <CloudConsent
           purpose="transcription"
           keepsRecording
+          keepsVideo={media === "video"}
           onAgree={() => {
-            const audio = awaitingConsent;
+            const recording = awaitingConsent;
             setAwaitingConsent(null);
-            void send(audio, story.reviewedText);
+            void send(recording, story.reviewedText);
           }}
           onDecline={() => setAwaitingConsent(null)}
         />
       ) : (
-        <RecorderPanel onUse={(audio) => submit(audio, story.reviewedText)} busy={busy} />
+        <RecorderPanel media={media} onUse={(recording) => submit(recording, story.reviewedText)} busy={busy} />
       )}
-      {busy && <p aria-live="polite">{t.record.transcribing}</p>}
+      {busy && <p aria-live="polite">{media === "video" ? t.record.transcribingVideo : t.record.transcribing}</p>}
       {error && <ErrorNote message={error} />}
     </StepShell>
   );
@@ -183,7 +223,7 @@ export function PreviewStep() {
   const sentences = useMemo(() => sentenceSpans(story.reviewedText, locale), [story.reviewedText, locale]);
   const range = choices.range && choices.range[1] < sentences.length ? choices.range : defaultRange(sentences, choices.kind);
   const outputLanguage = choices.outputLanguage ?? story.sourceLanguage;
-  const usesTake = choices.kind === "narrated-video" && choices.narration === "recorded";
+  const usesTake = choices.kind === "captioned-video" || (choices.kind === "narrated-video" && choices.narration === "recorded");
   const span: [number, number] | undefined = sentences.length ? [sentences[range[0]].start, sentences[range[1]].end] : undefined;
   const passageChars = span ? span[1] - span[0] : 0;
   const tooLong = choices.kind === "card" && passageChars > CARD_MAX_CHARS;
@@ -268,7 +308,7 @@ export function PreviewStep() {
   return (
     <StepShell title={t.preview.title}>
       {usesTake ? (
-        <p className="text-muted-foreground">{t.preview.wholeTake}</p>
+        <p className="text-muted-foreground">{choices.kind === "captioned-video" ? t.preview.wholeVideoTake : t.preview.wholeTake}</p>
       ) : (
         <fieldset className="flex flex-col gap-2">
           <legend className="font-semibold text-lg">{t.preview.passage}</legend>
@@ -383,7 +423,7 @@ export function PreviewStep() {
               <video src={asset.asset.previewUrl} controls playsInline className="block w-full" />
             )}
           </div>
-          {asset.asset.spec.kind === "narrated-video" && (
+          {asset.asset.spec.kind !== "card" && (
             <details className="rounded-lg border bg-card p-3 text-sm">
               <summary className="cursor-pointer font-medium">{t.preview.included.words}</summary>
               <p lang={LANGUAGES[asset.asset.spec.captionLanguage].uiLocale} className="mt-2">
@@ -396,7 +436,7 @@ export function PreviewStep() {
             <h2 className="mb-3 font-semibold text-lg">{t.preview.includedTitle}</h2>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">{included.format}</dt>
-              <dd>{asset.asset.spec.kind === "card" ? included.card : included.video}</dd>
+              <dd>{{ card: included.card, "narrated-video": included.video, "captioned-video": included.faceVideo }[asset.asset.spec.kind]}</dd>
               <dt className="text-muted-foreground">{included.words}</dt>
               <dd>
                 {usesTake ? included.wholeTake : asset.asset.spec.excerpt ? included.excerpt(passageChars) : included.whole}
@@ -417,7 +457,7 @@ export function PreviewStep() {
                 {asset.asset.spec.machineTranslated && ` · ${t.preview.machineTranslated}`}
               </dd>
               <dt className="text-muted-foreground">{included.visuals}</dt>
-              <dd>{included.plain}</dd>
+              <dd>{asset.asset.spec.footage === "original" ? included.ownFootage : included.plain}</dd>
             </dl>
           </div>
 
