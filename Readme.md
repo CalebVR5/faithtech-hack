@@ -1,3 +1,6 @@
+# Note for Baptize the World Compatibility
+This application could be easily deployed using Vercel to line up with Baptize the World's tech stack, while still utilizing Google Cloud APIs for translation, text-to-speech, and speech-to-text which are relatively easy to set up, just requiring a fresh google cloud project and a couple quick steps.
+
 # Testimony sharing (FaithTech hackathon prototype)
 
 Help someone tell their baptism story in their own words, prepare something they're comfortable sharing, and choose who receives it.
