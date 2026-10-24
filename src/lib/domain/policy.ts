@@ -8,6 +8,9 @@ export type Action = "export" | "submit-mock-inbox";
 
 export const MOCK_INBOX_RECIPIENT = "baptize-demo-inbox";
 
+/** Recorded with every consent. Bump when approval or inbox wording in the locale files changes. */
+export const CONSENT_COPY_VERSION = "2026-10-24.1";
+
 export type Decision = { ok: true } | { ok: false; code: DenialCode; reason: string };
 
 export type DenialCode =
@@ -44,7 +47,7 @@ function activeConsent(ctx: PolicyContext, purpose: ConsentPurpose, recipient?: 
   );
 }
 
-function needsGuardian(story: Story): boolean {
+export function needsGuardian(story: Pick<Story, "ageGate">): boolean {
   // "Not sure" follows the guardian-needed path (plan section 3).
   return story.ageGate === "under-18" || story.ageGate === "not-sure";
 }
@@ -86,9 +89,9 @@ export function authorize(action: Action, ctx: PolicyContext): Decision {
   return checkPurpose(ctx, "baptize-review", MOCK_INBOX_RECIPIENT);
 }
 
-/** Recording, export and submission stay disabled until the age gate allows them. */
-export function captureAllowed(story: Story, guardianSimulationApproved: boolean): boolean {
+/** Recording, story content, export and submission stay disabled until the age gate allows them. */
+export function captureAllowed(story: Pick<Story, "ageGate" | "guardianCapture">): boolean {
   if (story.ageGate === "adult") return true;
   if (story.ageGate === "unanswered") return false;
-  return guardianSimulationApproved;
+  return story.guardianCapture === "approved-in-simulation";
 }

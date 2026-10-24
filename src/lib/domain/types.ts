@@ -8,7 +8,8 @@ export type AgeGate = "unanswered" | "adult" | "under-18" | "not-sure";
 
 export type NarrationMode = "recorded" | "synthetic" | "none";
 export type FootageMode = "original" | "blurred" | "neutral";
-export type OutputKind = "card" | "captioned-video" | "narrated-video";
+/** Implemented renderers. "captioned-video" (option B) is planned but not built. */
+export type OutputKind = "card" | "narrated-video";
 
 /** What the person wants kept out of the shared output. These are preferences, not a security assessment. */
 export interface PrivacyPreferences {
@@ -19,20 +20,7 @@ export interface PrivacyPreferences {
   notSure: boolean;
 }
 
-export interface Story {
-  id: string;
-  /** True for fabricated fixtures. The prototype accepts no real testimony. */
-  fixture: boolean;
-  sessionId: string;
-  ageGate: AgeGate;
-  interfaceLanguage: LanguageId;
-  sourceLanguage: LanguageId;
-  captionLanguage: LanguageId;
-  privacy: PrivacyPreferences;
-  displayName?: string;
-  /** Increments on every edit to reviewed text or story settings. */
-  version: number;
-}
+export type GuardianState = "pending" | "approved-in-simulation" | "declined";
 
 /** A time-coded span of text. Times are relative to the audio the span belongs to. */
 export interface Segment {
@@ -59,31 +47,44 @@ export interface Transcript {
   model: string;
 }
 
-export interface Source {
-  id: string;
-  storyId: string;
-  mediaType: "text" | "audio" | "video";
-  /** Private temp-store reference; absent for typed stories. */
-  mediaRef?: string;
-  sttLocale?: string;
-  originalTranscript?: Transcript;
-  /** Author-reviewed text. This becomes the canonical story. */
-  reviewedText: string;
-  storyVersion: number;
-  expiresAt?: number;
+/**
+ * The recording used for "My recorded voice" narration. Its segments are the
+ * author-reviewed transcript of this take, so captions follow what is audible
+ * even when the take differs from the typed story or script.
+ */
+export interface NarrationTake {
+  audioRef: string;
+  durationMs: number;
+  segments: Segment[];
+  origin: "capture" | "script";
+  /** Story version whose text was shown in the script reader, for scripted takes. */
+  scriptVersion?: number;
+  sttLocale: string;
+  provider: string;
 }
 
-export interface Translation {
+export interface Story {
   id: string;
-  sourceId: string;
-  storyVersion: number;
-  from: LanguageId;
-  to: LanguageId;
-  provider: string;
-  segments: string[];
-  machineGenerated: true;
-  /** Human language review is deferred (revision 4). Always "not-reviewed" in the prototype. */
-  reviewStatus: "not-reviewed";
+  /** True for fabricated fixtures. The prototype accepts no real testimony. */
+  fixture: boolean;
+  sessionId: string;
+  ageGate: AgeGate;
+  /**
+   * Simulated guardian decision that unlocks capture for "under-18" and
+   * "not-sure". A test scenario only, never guardianship verification.
+   */
+  guardianCapture: GuardianState | "not-needed";
+  interfaceLanguage: LanguageId;
+  sourceLanguage: LanguageId;
+  privacy: PrivacyPreferences;
+  displayName?: string;
+  sourceKind: "text" | "audio";
+  /** Author-reviewed text. This is the canonical story every output derives from. */
+  reviewedText: string;
+  take?: NarrationTake;
+  /** Increments on every edit to reviewed text, take, name or source language. */
+  version: number;
+  createdAt: number;
 }
 
 export interface SynthesisResult {
@@ -105,18 +106,24 @@ export interface RenderSpec {
   layoutVersion: string;
   /** Approved text spans as [start, end) character offsets into the reviewed source. */
   selectedSpans: Array<[number, number]>;
+  /** True when the selection is shorter than the whole story; the output says "excerpt". */
+  excerpt: boolean;
+  /** Exact words on a card, after any translation. */
+  cardText?: string;
   narration: NarrationMode;
   narrationLanguage: LanguageId;
   narrationVoice?: string;
   audioRef?: string;
   captionLanguage: LanguageId;
   captions: Segment[];
-  captionsMachineTranslated: boolean;
+  /** Card text or captions came from machine translation and were not independently reviewed. */
+  machineTranslated: boolean;
   footage: FootageMode;
+  showStoryLabel: boolean;
   displayName?: string;
 }
 
-export type AssetStatus = "pending" | "rendering" | "rendered" | "failed";
+export type AssetStatus = "rendered" | "failed";
 
 export interface Asset {
   id: string;
@@ -127,17 +134,15 @@ export interface Asset {
   version: number;
   spec: RenderSpec;
   status: AssetStatus;
+  mimeType?: string;
   fileRef?: string;
   fileHash?: string;
+  durationMs?: number;
   error?: string;
+  renderedAt: number;
 }
 
-export type ConsentPurpose =
-  | "personal-output"
-  | "baptize-review"
-  | "public-featuring";
-
-export type GuardianState = "pending" | "approved-in-simulation" | "declined";
+export type ConsentPurpose = "personal-output" | "baptize-review" | "public-featuring";
 
 export interface Consent {
   id: string;
@@ -157,6 +162,7 @@ export interface Consent {
 
 export interface MockSubmission {
   id: string;
+  storyId: string;
   assetId: string;
   assetVersion: number;
   scopes: ConsentPurpose[];
@@ -164,17 +170,5 @@ export interface MockSubmission {
   idempotencyKey: string;
   mock: true;
   createdAt: number;
-}
-
-export type JobState = "pending" | "running" | "failed" | "complete";
-
-export interface RenderJob {
-  id: string;
-  sessionId: string;
-  assetId: string;
-  assetVersion: number;
-  kind: OutputKind;
-  state: JobState;
-  error?: string;
-  expiresAt: number;
+  withdrawnAt?: number;
 }

@@ -1,6 +1,7 @@
 import { isLanguageId } from "@/lib/domain/languages";
 import { MAX_STORY_CHARS } from "@/lib/domain/limits";
 import { getLanguageProvider } from "@/lib/providers";
+import { requireCapture, requireStory } from "@/lib/server/guards";
 import { handleRouteError, hasCloudConsent, jsonError } from "@/lib/server/http";
 import { getOrCreateSessionId } from "@/lib/server/session";
 import { reserve } from "@/lib/server/usage";
@@ -9,9 +10,10 @@ import { reserve } from "@/lib/server/usage";
 // that has not been independently reviewed, and the response says so.
 export async function POST(request: Request) {
   try {
-    await getOrCreateSessionId(request);
+    const sessionId = await getOrCreateSessionId(request);
     const body = await request.json().catch(() => null);
-    const { segments, from, to, cloudProcessingAccepted } = body ?? {};
+    const { storyId, segments, from, to, cloudProcessingAccepted } = body ?? {};
+    requireCapture(requireStory(sessionId, storyId));
 
     if (!hasCloudConsent(cloudProcessingAccepted)) {
       return jsonError(403, "Translation needs your permission to send your text to the translation service.");

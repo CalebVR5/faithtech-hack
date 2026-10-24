@@ -14,10 +14,40 @@ export const ACCEPTED_AUDIO_TYPES = [
   "audio/ogg",
   "audio/mp4",
   "audio/mpeg",
+  "audio/mp3",
+  "audio/aac",
+  // iPhone voice memos and many Android recorders report .m4a this way.
+  "audio/x-m4a",
+  "audio/m4a",
   "audio/wav",
   "audio/x-wav",
+  "audio/wave",
   "audio/flac",
+  "audio/x-flac",
 ] as const;
+
+/** For uploads where the browser reports no MIME type. */
+export const AUDIO_TYPE_BY_EXTENSION: Record<string, string> = {
+  webm: "audio/webm",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  opus: "audio/ogg",
+  m4a: "audio/mp4",
+  mp4: "audio/mp4",
+  aac: "audio/aac",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  flac: "audio/flac",
+};
 
 // Word confidence below this marks the word for author correction.
 export const UNCERTAIN_WORD_CONFIDENCE = 0.6;
+
+// Card excerpts (option A). Font size steps down in fixed tiers, never
+// indefinitely: past this length the author picks a shorter passage instead.
+export const CARD_MAX_CHARS = 320;
+// Translations run longer than their source; the template has room for this.
+export const CARD_MAX_TRANSLATED_CHARS = 420;
+
+// Longest narrated video. A full 1,500-character story read aloud fits inside it.
+export const MAX_RENDER_SECONDS = 150;

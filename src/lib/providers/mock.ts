@@ -15,14 +15,14 @@ const MS_PER_CHAR = 65;
 export const mockProvider: LanguageProvider = {
   name: "mock",
 
-  async transcribe({ durationMs, language, sttLocale }: TranscribeInput): Promise<Transcript> {
-    const fixture = fixtureFor(language, sttLocale);
+  async transcribe({ durationMs, language, sttLocale, scriptText }: TranscribeInput): Promise<Transcript> {
+    const text = scriptText?.trim() || fixtureFor(language, sttLocale).text;
     const locale = LANGUAGES[language].uiLocale;
-    const sentences = splitSentences(fixture.text, locale);
+    const sentences = splitSentences(text, locale);
     const span = Math.max(durationMs, 1000);
     const segments = proportionalSegments(sentences, span);
 
-    const tokens = fixture.text.split(/\s+/).filter(Boolean);
+    const tokens = text.split(/\s+/).filter(Boolean);
     const step = span / tokens.length;
     const words: TranscriptWord[] = tokens.map((text, i) => ({
       text,
@@ -33,7 +33,7 @@ export const mockProvider: LanguageProvider = {
       uncertain: i === 3,
     }));
 
-    return { text: fixture.text, segments, words, locale: sttLocale, provider: "mock", model: "fixture" };
+    return { text, segments, words, locale: sttLocale, provider: "mock", model: scriptText ? "script-echo" : "fixture" };
   },
 
   async translate({ segments, to }: TranslateInput): Promise<string[]> {

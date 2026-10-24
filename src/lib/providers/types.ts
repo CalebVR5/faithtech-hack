@@ -11,6 +11,12 @@ export interface TranscribeInput {
   durationMs: number;
   language: LanguageId;
   sttLocale: string;
+  /**
+   * Mock only: the script shown while a take was recorded, so offline demos
+   * transcribe something coherent. Real providers must ignore it; captions
+   * always follow what was actually said.
+   */
+  scriptText?: string;
 }
 
 export interface TranslateInput {

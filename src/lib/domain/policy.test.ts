@@ -7,11 +7,14 @@ const story: Story = {
   fixture: true,
   sessionId: "session-a",
   ageGate: "adult",
+  guardianCapture: "not-needed",
   interfaceLanguage: "en",
   sourceLanguage: "en",
-  captionLanguage: "en",
   privacy: { hideFace: false, hideVoice: false, hideName: true, hideSurroundings: false, notSure: false },
+  sourceKind: "text",
+  reviewedText: "I was baptized last spring.",
   version: 3,
+  createdAt: 0,
 };
 
 const asset: Asset = {
@@ -20,18 +23,21 @@ const asset: Asset = {
   storyVersion: 3,
   version: 2,
   status: "rendered",
+  renderedAt: 0,
   spec: {
     storyId: "story-1",
     storyVersion: 3,
     kind: "narrated-video",
     layoutVersion: "v1",
     selectedSpans: [[0, 10]],
+    excerpt: true,
     narration: "synthetic",
     narrationLanguage: "en",
     captionLanguage: "en",
     captions: [],
-    captionsMachineTranslated: false,
+    machineTranslated: false,
     footage: "neutral",
+    showStoryLabel: true,
   },
 };
 
@@ -141,9 +147,10 @@ describe("authorize mock inbox submission", () => {
 
 describe("captureAllowed", () => {
   it("blocks capture until the age gate allows it", () => {
-    expect(captureAllowed({ ...story, ageGate: "unanswered" }, true)).toBe(false);
-    expect(captureAllowed({ ...story, ageGate: "under-18" }, false)).toBe(false);
-    expect(captureAllowed({ ...story, ageGate: "not-sure" }, true)).toBe(true);
-    expect(captureAllowed(story, false)).toBe(true);
+    expect(captureAllowed({ ageGate: "unanswered", guardianCapture: "approved-in-simulation" })).toBe(false);
+    expect(captureAllowed({ ageGate: "under-18", guardianCapture: "pending" })).toBe(false);
+    expect(captureAllowed({ ageGate: "under-18", guardianCapture: "declined" })).toBe(false);
+    expect(captureAllowed({ ageGate: "not-sure", guardianCapture: "approved-in-simulation" })).toBe(true);
+    expect(captureAllowed(story)).toBe(true);
   });
 });

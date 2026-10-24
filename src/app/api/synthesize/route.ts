@@ -2,6 +2,7 @@ import { isLanguageId } from "@/lib/domain/languages";
 import { MAX_STORY_CHARS } from "@/lib/domain/limits";
 import type { SynthesisResult } from "@/lib/domain/types";
 import { getLanguageProvider } from "@/lib/providers";
+import { requireCapture, requireStory } from "@/lib/server/guards";
 import { handleRouteError, hasCloudConsent, jsonError } from "@/lib/server/http";
 import { getOrCreateSessionId } from "@/lib/server/session";
 import { putFile } from "@/lib/server/temp-store";
@@ -13,7 +14,8 @@ export async function POST(request: Request) {
   try {
     const sessionId = await getOrCreateSessionId(request);
     const body = await request.json().catch(() => null);
-    const { text, language, cloudProcessingAccepted } = body ?? {};
+    const { storyId, text, language, cloudProcessingAccepted } = body ?? {};
+    requireCapture(requireStory(sessionId, storyId));
 
     if (!hasCloudConsent(cloudProcessingAccepted)) {
       return jsonError(403, "Synthetic narration needs your permission to send your text to the speech service.");

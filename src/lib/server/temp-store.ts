@@ -60,6 +60,13 @@ export async function getFile(sessionId: string, id: string): Promise<{ record: 
   return { record, data: await readFile(filePath(id)) };
 }
 
+/** Ownership check without reading the file. */
+export function ownsFile(sessionId: string, id: unknown): boolean {
+  if (typeof id !== "string") return false;
+  const record = files.get(id);
+  return Boolean(record && record.sessionId === sessionId && record.expiresAt > Date.now());
+}
+
 export async function deleteFile(id: string): Promise<void> {
   files.delete(id);
   await rm(filePath(id), { force: true });

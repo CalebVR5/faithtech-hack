@@ -89,10 +89,14 @@ export async function normalizeAudio(input: Buffer, sampleRate = 16_000): Promis
 }
 
 /**
- * Escapes a filesystem path for use inside an ffmpeg filter argument such as
- * subtitles=… or drawtext fontfile=…. Windows drive colons and backslashes
- * otherwise break filter parsing.
+ * Quotes a filesystem path as a filter option value, for example
+ * `subtitles=filename=${toFilterPath(p)}`. Filter strings are unescaped twice:
+ * once by the filtergraph parser (the single quotes) and once by the option
+ * parser (the backslash before ":"). Escaping only once leaves a Windows drive
+ * colon to split the option, which fails with "Unable to parse option value".
  */
 export function toFilterPath(p: string): string {
-  return p.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
+  const optionLevel = p.replace(/\\/g, "/").replace(/:/g, "\\:");
+  // A quote can't appear inside '…'; close, add an escaped quote, reopen.
+  return `'${optionLevel.replace(/'/g, "'\\\\\\''")}'`;
 }
