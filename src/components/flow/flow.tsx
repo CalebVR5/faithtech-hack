@@ -5,7 +5,7 @@ import { useApp, type Step } from "@/components/app-state";
 import { CaptureStep, RecordStep, ReviewStep, TranscriptStep, WriteStep } from "@/components/flow/steps-capture";
 import { FormatStep, PreviewStep, ScriptStep } from "@/components/flow/steps-output";
 import { ShareStep } from "@/components/flow/step-share";
-import { GuardianStep, PrivacyStep, WelcomeStep } from "@/components/flow/steps-start";
+import { GuardianStep, WelcomeStep } from "@/components/flow/steps-start";
 import { bigButton, StepShell } from "@/components/step-shell";
 import { Button } from "@/components/ui/button";
 import { Waterline } from "@/components/waterline";
@@ -39,7 +39,6 @@ export function Flow() {
       {stage !== undefined && <Waterline stage={stage} labels={t.welcome.steps} title={t.welcome.stepsTitle} />}
       {flow.step === "welcome" && <WelcomeStep />}
       {flow.step === "guardian" && <GuardianStep />}
-      {flow.step === "privacy" && <PrivacyStep />}
       {flow.step === "capture" && <CaptureStep />}
       {flow.step === "write" && <WriteStep />}
       {flow.step === "record" && <RecordStep />}

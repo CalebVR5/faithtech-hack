@@ -5,7 +5,6 @@ import { MESSAGES, type Messages } from "@/i18n";
 import { ApiError, api, type AssetState, type StoryView } from "@/lib/client/api";
 import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
 import { needsGuardian } from "@/lib/domain/policy";
-import { defaultShowName, recommendFormats } from "@/lib/domain/privacy-guide";
 import type { Box } from "@/lib/domain/face-cover";
 import type { NarrationMode, OutputKind, Segment, Transcript } from "@/lib/domain/types";
 
@@ -17,7 +16,6 @@ import type { NarrationMode, OutputKind, Segment, Transcript } from "@/lib/domai
 export type Step =
   | "welcome"
   | "guardian"
-  | "privacy"
   | "capture"
   | "write"
   | "record"
@@ -163,16 +161,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : story.reviewedText.trim()
           ? "review"
           : "capture";
-    // Start from the format that fits: their own video if they filmed one, else the guide's first suggestion.
-    const first = recommendFormats(story.privacy)[0];
+    // Start from the format that fits how the story was told: their own video, their voice, or a card.
     const choices: OutputChoices = story.take?.videoRef
-      ? { ...INITIAL.choices, kind: "captioned-video", showName: defaultShowName(story.privacy) }
-      : {
-          ...INITIAL.choices,
-          kind: first.kind,
-          narration: first.kind === "narrated-video" ? first.narration : story.privacy.hideVoice ? "synthetic" : "recorded",
-          showName: defaultShowName(story.privacy),
-        };
+      ? { ...INITIAL.choices, kind: "captioned-video" }
+      : story.take
+        ? { ...INITIAL.choices, kind: "narrated-video", narration: "recorded" }
+        : INITIAL.choices;
     setFlow((s) => {
       if (s.pending) URL.revokeObjectURL(s.pending.audioUrl);
       return { ...INITIAL, story, step, choices, history: ["welcome"] };

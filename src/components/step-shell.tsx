@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 import { cn } from "cn";
 import { useApp } from "@/components/app-state";
 import { Button } from "@/components/ui/button";
@@ -53,11 +53,14 @@ export function OptionButton({
   selected,
   badge,
   icon,
+  note,
   className,
   ...props
 }: {
   title: string;
   body?: ReactNode;
+  /** What this choice shares, in one short line. */
+  note?: ReactNode;
   selected?: boolean;
   badge?: ReactNode;
   icon?: ReactNode;
@@ -81,6 +84,11 @@ export function OptionButton({
           {badge}
         </span>
         {body && <span className="text-sm text-muted-foreground">{body}</span>}
+        {note && (
+          <span className="flex items-start gap-1.5 text-sm font-medium text-primary">
+            <Eye className="mt-0.5 size-4 shrink-0" aria-hidden /> {note}
+          </span>
+        )}
       </span>
     </button>
   );

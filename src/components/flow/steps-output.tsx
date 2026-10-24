@@ -11,14 +11,11 @@ import { useTranscribe } from "@/components/flow/steps-capture";
 import { FaceCoverEditor } from "@/components/face-cover-editor";
 import { RecorderPanel } from "@/components/recorder";
 import { bigButton, checkRow, OptionButton, StepShell } from "@/components/step-shell";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { api } from "@/lib/client/api";
 import { LANGUAGE_IDS, LANGUAGES, isLanguageId, type LanguageId } from "@/lib/domain/languages";
 import { CARD_MAX_CHARS } from "@/lib/domain/limits";
-import { conflictsFor, isRecommended } from "@/lib/domain/privacy-guide";
 import { sentenceSpans } from "@/lib/domain/text";
 import type { NarrationMode } from "@/lib/domain/types";
 
@@ -29,17 +26,13 @@ export function FormatStep() {
   const [reRecord, setReRecord] = useState(!story.take);
   const hasVideo = Boolean(story.take?.videoRef);
   const [reFilm, setReFilm] = useState(!hasVideo);
-  const ownVideoConflicts = conflictsFor(story.privacy, { kind: "captioned-video" });
-  const suggested = <Badge variant="secondary">{t.format.suggested}</Badge>;
   const setChoice = (patch: Partial<OutputChoices>) => update((s) => ({ choices: { ...s.choices, ...patch } }));
-  const voiceConflict = conflictsFor(story.privacy, { kind, narration }).includes("recorded-voice-kept");
-  const voices: Array<{ mode: NarrationMode; title: string; body: string; icon: React.ReactNode }> = [
-    { mode: "recorded", title: t.format.recorded, body: t.format.recordedBody, icon: <Mic /> },
-    { mode: "synthetic", title: t.format.synthetic, body: t.format.syntheticBody, icon: <Volume2 /> },
-    { mode: "none", title: t.format.none, body: t.format.noneBody, icon: <MicOff /> },
+  // Each choice says in one line what it shares, so the person decides with that in view.
+  const voices: Array<{ mode: NarrationMode; title: string; body: string; note: string; icon: React.ReactNode }> = [
+    { mode: "recorded", title: t.format.recorded, body: t.format.recordedBody, note: t.format.sharesRecorded, icon: <Mic /> },
+    { mode: "synthetic", title: t.format.synthetic, body: t.format.syntheticBody, note: t.format.sharesSynthetic, icon: <Volume2 /> },
+    { mode: "none", title: t.format.none, body: t.format.noneBody, note: t.format.sharesNone, icon: <MicOff /> },
   ];
-  // Respect a choice to hide the voice: lead with the alternatives instead of persuading (plan section 4, option C).
-  if (story.privacy.hideVoice) voices.push(voices.shift()!);
 
   const next = () => {
     if (kind === "captioned-video" && (reFilm || !hasVideo)) go("script");
@@ -61,50 +54,32 @@ export function FormatStep() {
           icon={<Video />}
           title={t.format.faceVideo}
           body={t.format.faceVideoBody}
+          note={t.format.sharesFace}
           selected={kind === "captioned-video"}
-          badge={isRecommended(story.privacy, { kind: "captioned-video" }) && suggested}
           onClick={() => setChoice({ kind: "captioned-video" })}
         />
         <OptionButton
           icon={<ImageIcon />}
           title={t.format.card}
           body={t.format.cardBody}
+          note={t.format.sharesCard}
           selected={kind === "card"}
-          badge={isRecommended(story.privacy, { kind: "card" }) && suggested}
           onClick={() => setChoice({ kind: "card" })}
         />
         <OptionButton
           icon={<Clapperboard />}
           title={t.format.video}
           body={t.format.videoBody}
+          note={t.format.sharesPlain}
           selected={kind === "narrated-video"}
           onClick={() => setChoice({ kind: "narrated-video" })}
         />
       </div>
 
-      {kind === "captioned-video" && (
-        <div className="flex flex-col gap-3">
-          {ownVideoConflicts.includes("face-shown") && (
-            <Alert>
-              <AlertDescription>{t.format.conflictFace}</AlertDescription>
-            </Alert>
-          )}
-          {ownVideoConflicts.includes("surroundings-shown") && (
-            <Alert>
-              <AlertDescription>{t.format.conflictSurroundings}</AlertDescription>
-            </Alert>
-          )}
-          {ownVideoConflicts.includes("recorded-voice-kept") && (
-            <Alert>
-              <AlertDescription>{t.format.conflictVoice}</AlertDescription>
-            </Alert>
-          )}
-          {hasVideo && (
-            <div className="flex flex-col gap-2 pl-2" role="radiogroup">
-              <OptionButton title={t.format.useCaptureVideo} selected={!reFilm} onClick={() => setReFilm(false)} />
-              <OptionButton title={t.format.recordVideo} selected={reFilm} onClick={() => setReFilm(true)} />
-            </div>
-          )}
+      {kind === "captioned-video" && hasVideo && (
+        <div className="flex flex-col gap-2 pl-2" role="radiogroup">
+          <OptionButton title={t.format.useCaptureVideo} selected={!reFilm} onClick={() => setReFilm(false)} />
+          <OptionButton title={t.format.recordVideo} selected={reFilm} onClick={() => setReFilm(true)} />
         </div>
       )}
 
@@ -119,16 +94,11 @@ export function FormatStep() {
               icon={v.icon}
               title={v.title}
               body={v.body}
+              note={v.note}
               selected={narration === v.mode}
-              badge={isRecommended(story.privacy, { kind: "narrated-video", narration: v.mode }) && suggested}
               onClick={() => setChoice({ narration: v.mode })}
             />
           ))}
-          {voiceConflict && (
-            <Alert>
-              <AlertDescription>{t.format.conflictVoice}</AlertDescription>
-            </Alert>
-          )}
           {narration === "recorded" && story.take && (
             <div className="flex flex-col gap-2 pl-2" role="radiogroup">
               <OptionButton title={t.format.useCapture} selected={!reRecord} onClick={() => setReRecord(false)} />
@@ -138,6 +108,7 @@ export function FormatStep() {
         </div>
       )}
 
+      <p className="text-sm text-muted-foreground">{t.format.identityNote}</p>
     </StepShell>
   );
 }
@@ -220,10 +191,8 @@ export function PreviewStep() {
   const passageChars = span ? span[1] - span[0] : 0;
   const tooLong = choices.kind === "card" && passageChars > CARD_MAX_CHARS;
   const showName = choices.showName && Boolean(story.displayName);
-  // Covering the face starts on when the person said they'd like to keep it out.
-  const coverOn = choices.kind === "captioned-video" && (choices.coverFace ?? story.privacy.hideFace);
+  const coverOn = choices.kind === "captioned-video" && (choices.coverFace ?? false);
   const faceCover = coverOn ? choices.faceCover : null;
-  const nameConflict = conflictsFor(story.privacy, { kind: choices.kind, showName }).includes("name-shown");
 
   const [askConsent, setAskConsent] = useState<{ language?: LanguageId } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -513,11 +482,6 @@ export function PreviewStep() {
             </span>
           </label>
           {!story.displayName && <p className="text-sm text-muted-foreground">{t.preview.noName}</p>}
-          {nameConflict && (
-            <Alert>
-              <AlertDescription>{t.preview.nameConflict}</AlertDescription>
-            </Alert>
-          )}
         </div>
 
       </section>

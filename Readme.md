@@ -65,7 +65,7 @@ The storyteller's flow (plan section 3), end to end:
 
 1. **Entry:** interface language by name (no flags); the age question is on the welcome screen, so the first tap answers it.
 2. **Guardian gate:** under-18 and not-sure stories can't be written, recorded, rendered, exported or submitted until a *simulated* guardian approves. The server enforces this on every content route, not just the UI. A decline is final for that story.
-3. **Privacy guide:** face / voice / name / surroundings / not sure. Recommends formats and explains conflicts; never switches to a more revealing option by itself.
+3. **What gets shared:** no separate privacy screen. Each format, and each voice choice, carries a one-line note of exactly what it shares ("Shares your face, voice and surroundings…", "No face or voice"), with one line on names and identifying details.
 4. **Capture:** type with three optional prompts or "my own way"; record your voice or **film yourself** (camera on to frame, then record; MediaRecorder with detected MIME type, 60-second hard stop, retry, playback); upload an audio or video file; or load a fabricated sample. Story language is separate from interface language, with regional transcription accents (es-MX, es-PE, fr-CA…).
 5. **Cloud consent:** one notice per story, shown the first time anything would leave the device. It names the service and lists each use (transcription; translation and synthetic voice only if picked), retention and alternatives. A first camera video also explains that the app keeps the video for up to an hour. The server refuses requests without it.
 6. **Check the words (recordings):** one screen: listen back (or watch, for video), edit each sentence, uncertain words highlighted, the identifying-details helper and the optional name. After filming, it goes straight to the preview as *Video of me*.
@@ -81,7 +81,7 @@ The storyteller's flow (plan section 3), end to end:
 |---|---|
 | Shared contract: Story, NarrationTake, RenderSpec, Asset, Consent, MockSubmission | [`src/lib/domain/types.ts`](src/lib/domain/types.ts) |
 | `authorize()`: the single export/submission check (exact version, stale story, guardian, separate inbox consent) and `captureAllowed()` | [`src/lib/domain/policy.ts`](src/lib/domain/policy.ts) |
-| Word-timed captions ([`timing.ts`](src/lib/domain/timing.ts)), sentence offsets, identifying-detail flags, privacy recommendations, burned-in labels in four languages | [`src/lib/domain/`](src/lib/domain) |
+| Word-timed captions ([`timing.ts`](src/lib/domain/timing.ts)), sentence offsets, identifying-detail flags, burned-in labels in four languages | [`src/lib/domain/`](src/lib/domain) |
 | Card and video layouts as ASS documents (libass does wrapping with the bundled fonts) | [`src/lib/render/ass.ts`](src/lib/render/ass.ts) |
 | FFmpeg renderers and the server-side composer (builds the RenderSpec from the stored story, never from client-sent captions) | [`src/lib/server/render.ts`](src/lib/server/render.ts), [`src/lib/server/compose.ts`](src/lib/server/compose.ts) |
 | In-memory story/asset/consent/inbox store, ownership guards | [`src/lib/server/store.ts`](src/lib/server/store.ts), [`src/lib/server/guards.ts`](src/lib/server/guards.ts) |

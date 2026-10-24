@@ -16,7 +16,6 @@ import { api } from "@/lib/client/api";
 import { findIdentifyingDetails } from "@/lib/domain/identifying";
 import { LANGUAGE_IDS, LANGUAGES, isLanguageId, type LanguageId } from "@/lib/domain/languages";
 import { MAX_RECORDING_SECONDS, MAX_STORY_CHARS } from "@/lib/domain/limits";
-import { conflictsFor } from "@/lib/domain/privacy-guide";
 import { sentencesFromWords } from "@/lib/domain/timing";
 
 export function CaptureStep() {
@@ -25,8 +24,6 @@ export function CaptureStep() {
   const [showSamples, setShowSamples] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lang = LANGUAGES[story.sourceLanguage];
-  const voiceConflict = conflictsFor(story.privacy, { kind: "card", capture: "voice" }).includes("voice-captured");
-  const faceConflict = conflictsFor(story.privacy, { kind: "card", capture: "video" }).includes("face-captured");
 
   const setLanguage = async (value: string) => {
     if (!isLanguageId(value)) return;
@@ -113,11 +110,6 @@ export function CaptureStep() {
             go("record");
           }}
         />
-        {faceConflict && (
-          <Alert>
-            <AlertDescription>{t.capture.faceConflict}</AlertDescription>
-          </Alert>
-        )}
         <OptionButton
           icon={<FileAudio />}
           title={t.capture.upload}
@@ -127,11 +119,6 @@ export function CaptureStep() {
             go("record");
           }}
         />
-        {voiceConflict && (
-          <Alert>
-            <AlertDescription>{t.capture.voiceConflict}</AlertDescription>
-          </Alert>
-        )}
         <OptionButton
           icon={<NotebookText />}
           title={t.capture.sample}
@@ -444,7 +431,10 @@ export function TranscriptStep() {
           // Someone who just filmed themselves wants that video; other formats stay one tap away.
           update((s) => ({ choices: { ...s.choices, kind: "captioned-video" } }));
           go("preview");
-        } else go("format");
+        } else {
+          update((s) => ({ choices: { ...s.choices, kind: "narrated-video", narration: "recorded" } }));
+          go("format");
+        }
       } else {
         await saveStory({ take });
         update((s) => ({

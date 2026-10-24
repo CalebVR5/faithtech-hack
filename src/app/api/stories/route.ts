@@ -1,5 +1,4 @@
 import { isLanguageId } from "@/lib/domain/languages";
-import { NO_PREFERENCES } from "@/lib/domain/privacy-guide";
 import type { AgeGate, Story } from "@/lib/domain/types";
 import { handleRouteError, json, jsonError } from "@/lib/server/http";
 import { getOrCreateSessionId, getSessionId } from "@/lib/server/session";
@@ -46,7 +45,7 @@ export async function POST(request: Request) {
       guardianCapture: ageGate === "adult" ? "not-needed" : "pending",
       interfaceLanguage,
       sourceLanguage: interfaceLanguage,
-      privacy: { ...NO_PREFERENCES },
+      privacy: { hideFace: false, hideVoice: false, hideName: false, hideSurroundings: false, notSure: false },
       sourceKind: "text",
       reviewedText: "",
       version: 1,
