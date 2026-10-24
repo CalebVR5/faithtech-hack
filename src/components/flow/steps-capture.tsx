@@ -6,16 +6,15 @@ import { useApp, type PendingTranscript } from "@/components/app-state";
 import { CloudConsent } from "@/components/cloud-consent";
 import { RecorderPanel, type CaptureMedia } from "@/components/recorder";
 import { ErrorNote } from "@/components/flow/steps-start";
-import { bigButton, checkRow, OptionButton, StepShell } from "@/components/step-shell";
+import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { STORY_FIXTURES } from "@/fixtures/stories";
 import { api } from "@/lib/client/api";
 import { findIdentifyingDetails } from "@/lib/domain/identifying";
-import { LANGUAGE_IDS, LANGUAGES, isLanguageId } from "@/lib/domain/languages";
+import { LANGUAGE_IDS, LANGUAGES, isLanguageId, type LanguageId } from "@/lib/domain/languages";
 import { MAX_RECORDING_SECONDS, MAX_STORY_CHARS } from "@/lib/domain/limits";
 import { conflictsFor } from "@/lib/domain/privacy-guide";
 import { sentencesFromWords } from "@/lib/domain/timing";
@@ -297,8 +296,8 @@ export function useTranscribe(purpose: PendingTranscript["purpose"], media: Capt
   };
 
   const submit = (recording: Blob, scriptText?: string) => {
-    // A video always shows the notice: the app keeps footage of the person's face.
-    if (flow.cloud.transcription && media !== "video") void send(recording, scriptText);
+    // The notice shows once per story, and again for a first video: the app keeps footage of the person's face.
+    if (flow.cloud.transcription && (media !== "video" || flow.videoNotice)) void send(recording, scriptText);
     else setAwaitingConsent(recording);
   };
 
@@ -319,7 +318,6 @@ export function RecordStep() {
       </ul>
       {awaitingConsent ? (
         <CloudConsent
-          purpose="transcription"
           keepsRecording
           keepsVideo={media === "video"}
           onAgree={() => {
@@ -362,13 +360,60 @@ function changeRatio(before: string, after: string): number {
   return 1 - common / Math.max(a.length, b.length, 1);
 }
 
+/** Possible names, places, dates and family members, as a helper only. */
+function IdentifyingFlags({ text, language }: { text: string; language: LanguageId }) {
+  const { t } = useApp();
+  const flags = useMemo(() => findIdentifyingDetails(text, language), [text, language]);
+  return (
+    <div className="flex flex-col gap-2 rounded-xl bg-secondary p-4">
+      <h2 className="font-semibold">{t.review.flagsTitle}</h2>
+      <p className="text-sm text-muted-foreground">{t.review.flagsHint}</p>
+      {flags.length === 0 ? (
+        <p className="text-sm">{t.review.noFlags}</p>
+      ) : (
+        <ul className="flex flex-wrap gap-2">
+          {flags.map((f) => (
+            <li key={`${f.start}-${f.text}`} className="rounded-lg border bg-card px-2 py-1 text-sm">
+              <span className="font-medium">{f.text}</span> <span className="text-muted-foreground">· {t.review.flagKinds[f.kind]}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function DisplayNameField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { t } = useApp();
+  return (
+    <div className="flex flex-col gap-2">
+      <label htmlFor="display-name" className="font-semibold">
+        {t.review.displayName}
+      </label>
+      <p id="display-name-hint" className="text-sm text-muted-foreground">
+        {t.review.displayNameHint}
+      </p>
+      <input
+        id="display-name"
+        aria-describedby="display-name-hint"
+        className="h-11 rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        maxLength={40}
+        autoComplete="off"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
 export function TranscriptStep() {
   const { t, flow, update, go, saveStory, errorText } = useApp();
   const pending = flow.pending!;
   const story = flow.story!;
-  const [checked, setChecked] = useState(false);
+  const [name, setName] = useState(story.displayName ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isCapture = pending.purpose === "capture";
   const uncertain = pending.transcript.words.filter((w) => w.uncertain);
   const original = pending.transcript.segments.map((s) => s.text).join(" ");
   const edited = pending.segments.map((s) => s.text).join(" ");
@@ -392,11 +437,14 @@ export function TranscriptStep() {
             provider: pending.transcript.provider,
           }
         : null;
-      if (pending.purpose === "capture") {
-        await saveStory({ reviewedText: segments.map((s) => s.text.trim()).join(" "), sourceKind: "audio", take });
-        // Someone who just filmed themselves most likely wants that video.
-        if (pending.media === "video") update((s) => ({ choices: { ...s.choices, kind: "captioned-video" } }));
-        go("review");
+      if (isCapture) {
+        // One review for a recording: the words, the name and the details to check are all here.
+        await saveStory({ reviewedText: segments.map((s) => s.text.trim()).join(" "), sourceKind: "audio", take, displayName: name });
+        if (pending.media === "video") {
+          // Someone who just filmed themselves wants that video; other formats stay one tap away.
+          update((s) => ({ choices: { ...s.choices, kind: "captioned-video" } }));
+          go("preview");
+        } else go("format");
       } else {
         await saveStory({ take });
         update((s) => ({
@@ -416,7 +464,7 @@ export function TranscriptStep() {
       title={t.transcript.title}
       lead={t.transcript.lead}
       actions={
-        <Button className={bigButton} onClick={save} disabled={busy || (uncertain.length > 0 && !checked)}>
+        <Button className={bigButton} onClick={save} disabled={busy}>
           {t.common.continue}
         </Button>
       }
@@ -467,11 +515,11 @@ export function TranscriptStep() {
           />
         </div>
       ))}
-      {uncertain.length > 0 && (
-        <label className={checkRow}>
-          <Checkbox checked={checked} onCheckedChange={(c) => setChecked(c === true)} />
-          <span>{t.transcript.uncertainCheck}</span>
-        </label>
+      {isCapture && (
+        <>
+          <IdentifyingFlags text={edited} language={story.sourceLanguage} />
+          <DisplayNameField value={name} onChange={setName} />
+        </>
       )}
       {bigChange && (
         <Alert>
@@ -490,7 +538,6 @@ export function ReviewStep() {
   const [name, setName] = useState(story.displayName ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const flags = useMemo(() => findIdentifyingDetails(text, story.sourceLanguage), [text, story.sourceLanguage]);
   const left = MAX_STORY_CHARS - text.length;
   const takeDiffers = story.take?.origin === "capture" && story.take.segments.map((s) => s.text).join(" ") !== text.trim();
 
@@ -536,39 +583,8 @@ export function ReviewStep() {
       </div>
       {takeDiffers && <p className="text-sm text-muted-foreground">{t.review.takeNote}</p>}
 
-      <div className="flex flex-col gap-2 rounded-xl bg-secondary p-4">
-        <h2 className="font-semibold">{t.review.flagsTitle}</h2>
-        <p className="text-sm text-muted-foreground">{t.review.flagsHint}</p>
-        {flags.length === 0 ? (
-          <p className="text-sm">{t.review.noFlags}</p>
-        ) : (
-          <ul className="flex flex-wrap gap-2">
-            {flags.map((f) => (
-              <li key={`${f.start}-${f.text}`} className="rounded-lg border bg-card px-2 py-1 text-sm">
-                <span className="font-medium">{f.text}</span> <span className="text-muted-foreground">· {t.review.flagKinds[f.kind]}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label htmlFor="display-name" className="font-semibold">
-          {t.review.displayName}
-        </label>
-        <p id="display-name-hint" className="text-sm text-muted-foreground">
-          {t.review.displayNameHint}
-        </p>
-        <input
-          id="display-name"
-          aria-describedby="display-name-hint"
-          className="h-11 rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          maxLength={40}
-          autoComplete="off"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
+      <IdentifyingFlags text={text} language={story.sourceLanguage} />
+      <DisplayNameField value={name} onChange={setName} />
       {error && <ErrorNote message={error} />}
     </StepShell>
   );

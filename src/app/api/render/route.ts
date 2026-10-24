@@ -1,3 +1,4 @@
+import { isBox } from "@/lib/domain/face-cover";
 import { isLanguageId } from "@/lib/domain/languages";
 import type { NarrationMode } from "@/lib/domain/types";
 import { renderAsset, type RenderChoices } from "@/lib/server/compose";
@@ -17,6 +18,8 @@ export async function POST(request: Request) {
     requireCapture(story);
 
     if (body.kind !== "card" && body.kind !== "narrated-video" && body.kind !== "captioned-video") return jsonError(400, "Choose a format.");
+    // A requested cover that isn't valid is refused, never silently dropped.
+    if (body.faceCover != null && !isBox(body.faceCover)) return jsonError(400, "That face cover isn't valid.", "bad-face-cover");
     if (body.kind === "narrated-video" && !NARRATIONS.includes(body.narration)) return jsonError(400, "Choose a voice option.");
     const outputLanguage = isLanguageId(body.outputLanguage) ? body.outputLanguage : story.sourceLanguage;
     const span =
@@ -29,7 +32,9 @@ export async function POST(request: Request) {
       narration: body.kind === "card" ? "none" : body.kind === "captioned-video" ? "recorded" : body.narration,
       outputLanguage,
       showName: body.showName === true,
-      showStoryLabel: body.showStoryLabel !== false,
+      // The "My baptism story" label belongs on the card and the plain-background video; the person's own video stays clean.
+      showStoryLabel: body.kind !== "captioned-video",
+      faceCover: body.kind === "captioned-video" && isBox(body.faceCover) ? body.faceCover : undefined,
       span,
       cloud: {
         translation: hasCloudConsent(body.cloud?.translation),

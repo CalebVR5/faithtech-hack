@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { withTexts } from "@/lib/domain/captions";
+import type { Box } from "@/lib/domain/face-cover";
 import { buildSlides, paceWords, type TimedWord } from "@/lib/domain/timing";
 import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
 import { CARD_MAX_CHARS, CARD_MAX_TRANSLATED_CHARS, MAX_RENDER_SECONDS } from "@/lib/domain/limits";
@@ -27,6 +28,8 @@ export interface RenderChoices {
   showStoryLabel: boolean;
   /** [start, end) into the reviewed text; whole story when omitted. */
   span?: [number, number];
+  /** "Video of me" only: the region to blur in every frame. */
+  faceCover?: Box;
   cloud: { translation: boolean; narration: boolean };
 }
 
@@ -192,7 +195,9 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
       labels.prototype,
     ].filter((n): n is string => Boolean(n)),
   };
-  const file = video ? await renderFaceMp4({ ...layout, video }) : await renderNarratedMp4({ ...layout, audio });
+  const faceCover = video ? choices.faceCover : undefined;
+  // A failed cover is an error, never a fallback to the uncovered video.
+  const file = video ? await renderFaceMp4({ ...layout, video, faceCover }) : await renderNarratedMp4({ ...layout, audio });
   return {
     file,
     mimeType: "video/mp4",
@@ -206,7 +211,8 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
       narrationVoice,
       audioRef,
       captions,
-      footage: video ? "original" : "neutral",
+      footage: video ? (faceCover ? "blurred" : "original") : "neutral",
+      faceCover,
     },
   };
 }

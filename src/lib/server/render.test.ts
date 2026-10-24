@@ -79,6 +79,36 @@ describe("renderers", { timeout: 60_000 }, () => {
     await keep("face.mp4", mp4);
   });
 
+  it("blurs the face cover in every frame, leaving the rest of the picture sharp", async () => {
+    const source = await withScratchDir(async (dir) => {
+      const out = path.join(dir, "camera.webm");
+      await runFfmpeg([
+        "-f", "lavfi", "-i", "testsrc2=size=640x480:rate=30:duration=2",
+        "-f", "lavfi", "-i", "sine=frequency=300:duration=2",
+        "-c:v", "libvpx", "-b:v", "800k", "-c:a", "libopus", "-shortest", out,
+      ]);
+      return readFile(out);
+    });
+    const render = (faceCover?: { x: number; y: number; w: number; h: number }) =>
+      renderFaceMp4({ video: source, durationMs: 2000, captions: [], notes: [], faceCover });
+    // Mean edge strength in the covered area of the output (source 640x480 fitted to 720x540 at y=370).
+    const edges = (mp4: Buffer) =>
+      withScratchDir(async (dir) => {
+        const f = path.join(dir, "out.mp4");
+        await writeFile(f, mp4);
+        const log = await runFfmpeg([
+          "-i", f, "-frames:v", "1", "-vf", "crop=260:190:230:545,edgedetect,signalstats,metadata=print:key=lavfi.signalstats.YAVG", "-f", "null", "-",
+        ]);
+        return Number(/YAVG=([\d.]+)/.exec(log)![1]);
+      });
+    const sharp = await edges(await render());
+    const covered = await render({ x: 0.3, y: 0.3, w: 0.4, h: 0.4 });
+    await keep("face-covered.mp4", covered);
+    const blurred = await edges(covered);
+    expect(sharp).toBeGreaterThan(1);
+    expect(blurred).toBeLessThan(sharp / 4);
+  });
+
   it("renders a silent video for the no-voice option", async () => {
     const mp4 = await renderNarratedMp4({
       durationMs: 2000,

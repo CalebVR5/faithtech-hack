@@ -3,6 +3,7 @@
 // consent and authorization; renderers take a RenderSpec and return an Asset.
 
 import type { LanguageId } from "./languages";
+import type { Box } from "./face-cover";
 import type { TimedWord } from "./timing";
 
 export type AgeGate = "unanswered" | "adult" | "under-18" | "not-sure";
@@ -128,6 +129,8 @@ export interface RenderSpec {
   /** Card text or captions came from machine translation and were not independently reviewed. */
   machineTranslated: boolean;
   footage: FootageMode;
+  /** "Video of me" with the face covered: the region blurred in every frame, as fractions of the frame. */
+  faceCover?: Box;
   showStoryLabel: boolean;
   displayName?: string;
 }

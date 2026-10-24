@@ -3,6 +3,7 @@ import "server-only";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { CARD_SIZE, cardAss, faceVideoAss, PALETTE, VIDEO_SIZE, videoAss, type CardLayoutInput, type VideoLayoutInput } from "@/lib/render/ass";
+import type { Box } from "@/lib/domain/face-cover";
 import { runFfmpeg, toFilterPath, withScratchDir } from "./ffmpeg";
 
 // Renderers for option A (card → PNG) and option C (narration over a neutral
@@ -78,6 +79,23 @@ export async function renderNarratedMp4(input: VideoRenderInput): Promise<Buffer
 export interface FaceVideoRenderInput extends VideoLayoutInput {
   /** The person's original camera recording or uploaded video. */
   video: Buffer;
+  /** Region to blur in every frame, as fractions of the source frame. */
+  faceCover?: Box;
+}
+
+/**
+ * A heavy blur over the cover region of the source frames. Blurring keeps the
+ * region exactly the cover's size; pixelating and scaling back can round down
+ * and leave a sliver of face at the edge. Values are validated numbers.
+ */
+function coverFilter(c: Box): string {
+  const n = (v: number) => v.toFixed(4);
+  return [
+    `[0:v]split=2[base][src]`,
+    `[src]crop=w='2*trunc(iw*${n(c.w)}/2)':h='2*trunc(ih*${n(c.h)}/2)':x='trunc(iw*${n(c.x)})':y='trunc(ih*${n(c.y)})',` +
+      `boxblur=luma_radius='min(w,h)/5':luma_power=4:chroma_radius='min(cw,ch)/5':chroma_power=4[covered]`,
+    `[base][covered]overlay=x='trunc(main_w*${n(c.x)})':y='trunc(main_h*${n(c.y)})'`,
+  ].join(";");
 }
 
 /**
@@ -102,11 +120,13 @@ export async function renderFaceMp4(input: FaceVideoRenderInput): Promise<Buffer
       "fps=30",
       subtitlesFilter(assPath),
     ].join(",");
+    // The cover is applied to the source frames first, so nothing after it can reveal the face.
+    const graph = input.faceCover ? `${coverFilter(input.faceCover)},${fit}[v]` : `[0:v]${fit}[v]`;
     await runFfmpeg(
       [
         "-i", inPath,
-        "-map", "0:v:0", "-map", "0:a:0",
-        "-vf", fit,
+        "-filter_complex", graph,
+        "-map", "[v]", "-map", "0:a:0",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2",
         "-map_metadata", "-1", "-map_chapters", "-1", "-sn", "-dn",

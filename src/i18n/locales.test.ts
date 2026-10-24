@@ -30,7 +30,11 @@ describe("locale files", () => {
   });
 
   it("contracts articles in consent sentences", () => {
-    expect(MESSAGES.fr.cloud.sentence("x", MESSAGES.fr.cloud.serviceMock, "y")).toContain(" au service ");
-    expect(MESSAGES["es-419"].cloud.sentence("x", MESSAGES["es-419"].cloud.serviceMock, "y")).toContain(" al servicio ");
+    // "à le service" / "a el servicio" would be ungrammatical; the intro must read cleanly with either service name.
+    for (const id of ["fr", "es-419", "pt-BR"] as const) {
+      const text = MESSAGES[id].cloud.intro(MESSAGES[id].cloud.serviceMock);
+      expect(text).not.toMatch(/ à le | a el | de el /);
+      expect(MESSAGES[id].cloud.uses).toHaveLength(3);
+    }
   });
 });

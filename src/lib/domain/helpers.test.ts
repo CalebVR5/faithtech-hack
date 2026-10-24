@@ -32,6 +32,14 @@ describe("withTexts", () => {
 });
 
 describe("findIdentifyingDetails", () => {
+  it("lists each word once and flags spoken ages", () => {
+    const en = findIdentifyingDetails("My grandma took me. Later my grandma cried. I was fourteen years old.", "en");
+    expect(en.filter((f) => f.text === "grandma")).toHaveLength(1);
+    expect(en.some((f) => f.text === "fourteen" && f.kind === "number-or-date")).toBe(true);
+    const es = findIdentifyingDetails("Tengo veintidós años.", "es-419");
+    expect(es.some((f) => f.text === "veintidós")).toBe(true);
+  });
+
   it("flags names, numbers, family and places without editing the text", () => {
     const text = "I went to church with my grandma in Riverside until 2019.";
     const flags = findIdentifyingDetails(text, "en");

@@ -63,16 +63,16 @@ If `gcp` is selected without a key, requests fail with a clear error. The app ne
 
 The storyteller's flow (plan section 3), end to end:
 
-1. **Entry:** prototype notice, interface language by name (no flags), age question with "I'm not sure".
+1. **Entry:** interface language by name (no flags); the age question is on the welcome screen, so the first tap answers it.
 2. **Guardian gate:** under-18 and not-sure stories can't be written, recorded, rendered, exported or submitted until a *simulated* guardian approves. The server enforces this on every content route, not just the UI. A decline is final for that story.
 3. **Privacy guide:** face / voice / name / surroundings / not sure. Recommends formats and explains conflicts; never switches to a more revealing option by itself.
 4. **Capture:** type with three optional prompts or "my own way"; record your voice or **film yourself** (camera on to frame, then record; MediaRecorder with detected MIME type, 60-second hard stop, retry, playback); upload an audio or video file; or load a fabricated sample. Story language is separate from interface language, with regional transcription accents (es-MX, es-PE, fr-CA…).
-5. **Cloud consent** before any transcription, translation or synthetic voice: names the service, what's sent, why, retention and alternatives. The server refuses requests without it.
-6. **Transcript correction:** listen back (or watch, for video), edit each sentence, uncertain words highlighted and must be checked, warning when edits drift far from the recording.
+5. **Cloud consent:** one notice per story, shown the first time anything would leave the device. It names the service and lists each use (transcription; translation and synthetic voice only if picked), retention and alternatives. A first camera video also explains that the app keeps the video for up to an hour. The server refuses requests without it.
+6. **Check the words (recordings):** one screen: listen back (or watch, for video), edit each sentence, uncertain words highlighted, the identifying-details helper and the optional name. After filming, it goes straight to the preview as *Video of me*.
 7. **Story review:** edit text, optional display name, and flags for possible names, places, dates and family members. These are an aid, and the text is never edited automatically.
-8. **Formats:** **Option B** *Video of me*: the person's own camera video (720×1280 MP4) with burned-in captions, fitted into 9:16 and padded rather than cropped. **Option A** story card (1080×1350 PNG). **Option C** narrated video over a plain background with *my recorded voice*, *a synthetic voice* or *no voice*. Face blur is listed as "not in this prototype".
+8. **Formats:** **Option B** *Video of me*: the person's own camera video (720×1280 MP4) with burned-in captions, fitted into 9:16 and padded rather than cropped, with an optional **face cover**. **Option A** story card (1080×1350 PNG). **Option C** narrated video over a plain background with *my recorded voice*, *a synthetic voice* or *no voice*. The "My baptism story" label is on the card and the plain-background video, never on the person's own video.
 9. **Script reader:** the approved text in large adjustable blocks, record/retry/playback, then the take is transcribed and reviewed so captions follow what was actually said.
-10. **Preview and approval:** pick one contiguous passage by sentence, choose the on-screen language (machine translation is labeled), show or hide name and label, render the **actual export file**, see "What will be included", and approve that exact version. Any change makes a new version that needs approval again.
+10. **Preview and approval:** the preview renders by itself (and again shortly after any change) and sits at the top with **Approve and continue** right under it; one tap approves that exact file and moves to sharing. Below: the passage (a long card starts with none selected), on-screen language (machine translation is labeled), face cover and name. Any change makes a new version that needs approval again.
 11. **Share:** feedback / finished / keep-a-copy intentions, an editable accompanying message kept separate from the story, WhatsApp and Instagram guided handoff with native share where supported, download, copy text, and "can't find the file?" help. It never claims anything was sent or posted.
 12. **Demo inbox:** a separate, unchecked opt-in (review only, not publication) with its own consent and, for minors, its own guardian decision. Shows a permission receipt with a withdraw button. Repeated clicks make one submission.
 13. **Delete my story** (on the preview, share and guardian-declined screens) removes everything the app holds for it: records, recordings, renders and any inbox copy.
@@ -121,6 +121,13 @@ All routes are session-owned (anonymous `sid` cookie). Another session gets `404
 - **Camera recording on real phones** (the desktop browser pane has no camera). The video path was tested with a generated portrait video carrying real speech, through Google Speech-to-Text.
 - **Interface translations** are drafts. Consent and privacy wording in all four languages needs native-speaker and legal review before any real-data use.
 
+## Face cover (Option B)
+
+- **On the person's device:** MediaPipe's face detector ([`@mediapipe/tasks-vision`](https://www.npmjs.com/package/@mediapipe/tasks-vision), BlazeFace short-range model in [`assets/models`](assets/models)) runs in the browser. This app serves the runtime and model itself from `/api/vision/*`, so no video goes anywhere to find the face and nothing is fetched from a CDN.
+- **One conservative cover:** the whole clip is sampled about 4 times a second; the cover is the union of every detected face position, padded for hair, chin and movement. The person can drag, resize (or use Bigger/Smaller and the arrow keys). Moments where a detected face falls outside the cover are listed ("0:12"), as are moments with more than one face. If no face is found, the person places the cover by hand.
+- **In the export:** FFmpeg blurs that region of every source frame before scaling, padding and captions (a blur, not pixelation, so the region is never shrunk by rounding). If a cover is requested and anything fails, there is no fallback to the uncovered video; a malformed cover is refused.
+- **Honest limits:** the screen says it plainly: covering the face helps but isn't a guarantee; voice, body, clothes and surroundings still show, and the person should watch the whole video before approving.
+
 ## How captions stay in sync
 
 Every caption is built from **words with their own times in the audio actually used**, in [`src/lib/domain/timing.ts`](src/lib/domain/timing.ts):
@@ -136,8 +143,8 @@ Checked on 2026-10-24 against real Google audio: synthetic-voice slides start wi
 
 - Film a real take per language on phones and check caption timing by eye, especially Peruvian Spanish (it uses the older transcription model).
 - Try the full flow on the team's iPhone and Android phones through the tunnel; adjust the WhatsApp/Instagram instructions to what the apps actually show.
-- Stretch (plan section 4): face blur for Option B.
+- Try the face cover on real phone videos (walking, turning, several people) and decide whether its "help, not a guarantee" wording is enough for the pilot.
 
 ## Credits
 
-Next.js, React, shadcn/ui (Base UI), Tailwind CSS, lucide icons, FFmpeg via [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) with libass, Vitest. Fonts (SIL Open Font License, in [`assets/fonts`](assets/fonts) with licenses in [`assets/font-licenses`](assets/font-licenses)): [Atkinson Hyperlegible](https://brailleinstitute.org/freefont) by the Braille Institute, and [Literata](https://github.com/googlefonts/literata) by TypeTogether for Google. Story fixtures are fabricated for this project.
+Next.js, React, shadcn/ui (Base UI), Tailwind CSS, lucide icons, [MediaPipe Tasks Vision](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector) and its BlazeFace short-range model (Apache 2.0), FFmpeg via [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) with libass, Vitest. Fonts (SIL Open Font License, in [`assets/fonts`](assets/fonts) with licenses in [`assets/font-licenses`](assets/font-licenses)): [Atkinson Hyperlegible](https://brailleinstitute.org/freefont) by the Braille Institute, and [Literata](https://github.com/googlefonts/literata) by TypeTogether for Google. Story fixtures are fabricated for this project.

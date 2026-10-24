@@ -6,6 +6,7 @@ import { ApiError, api, type AssetState, type StoryView } from "@/lib/client/api
 import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
 import { needsGuardian } from "@/lib/domain/policy";
 import { defaultShowName, recommendFormats } from "@/lib/domain/privacy-guide";
+import type { Box } from "@/lib/domain/face-cover";
 import type { NarrationMode, OutputKind, Segment, Transcript } from "@/lib/domain/types";
 
 // Unsaved drafts live in memory only (plan section 6): nothing here is written
@@ -15,7 +16,6 @@ import type { NarrationMode, OutputKind, Segment, Transcript } from "@/lib/domai
 
 export type Step =
   | "welcome"
-  | "age"
   | "guardian"
   | "privacy"
   | "capture"
@@ -45,9 +45,11 @@ export interface OutputChoices {
   narration: NarrationMode;
   outputLanguage: LanguageId | null;
   showName: boolean;
-  showStoryLabel: boolean;
   /** Inclusive sentence indices of the selected passage. */
   range: [number, number] | null;
+  /** "Video of me": cover the face. Null follows the privacy guide's answer. */
+  coverFace: boolean | null;
+  faceCover: Box | null;
 }
 
 export type CloudPurpose = "transcription" | "translation" | "narration";
@@ -63,7 +65,10 @@ export interface FlowState {
   sttLocale: string | null;
   pending: PendingTranscript | null;
   choices: OutputChoices;
+  /** Agreed once per story; covers each use listed in the notice. */
   cloud: Record<CloudPurpose, boolean>;
+  /** The person has seen that the app keeps their video for up to an hour. */
+  videoNotice: boolean;
   asset: AssetState | null;
   /** Choices + story version the current preview was made from. */
   renderedKey: string | null;
@@ -84,10 +89,12 @@ const INITIAL: FlowState = {
     narration: "recorded",
     outputLanguage: null,
     showName: false,
-    showStoryLabel: true,
     range: null,
+    coverFace: null,
+    faceCover: null,
   },
   cloud: { transcription: false, translation: false, narration: false },
+  videoNotice: false,
   asset: null,
   renderedKey: null,
 };

@@ -28,6 +28,9 @@ Tokens live in [src/app/globals.css](src/app/globals.css). Rendered cards and vi
 - **One gold button per moment.** Gold follows the next step: "Make preview", then "Approve this version", then "Continue to sharing". Everything else is outline or ghost. Optional paths, such as the demo inbox, are never gold.
 - **Teal means selected.** Selected options, checked rows (`checkRow` in [step-shell.tsx](src/components/step-shell.tsx)), chosen sentences and the chosen share destination all use teal border plus `--secondary` tint, or solid teal for compact toggles.
 - **No cream, gradients, glass, glows or side-stripe borders.**
+- **The result before the settings.** On the preview, the rendered file and "Approve and continue" come first; choices that change it sit below under "Change the details". Nothing needs a separate "make" or "update" button: the preview follows the choices.
+- **One tap per decision.** No checkbox in front of a button that already states the decision. Consent is one notice per story; approval is one button that also moves on.
+- **Helpers stay compact until needed.** The face-cover editor collapses to one line when the cover was placed automatically and nothing was missed, and opens itself when a face was missed or not found.
 
 ## Type
 

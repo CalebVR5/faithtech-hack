@@ -178,7 +178,7 @@ r = await a("POST", "/api/export", { assetId: mcard.id });
 check("export blocked for minor", r.status === 403 && r.data.code === "needs-guardian", r.data);
 r = await a("POST", "/api/guardian-simulation", { assetId: mcard.id, assetVersion: mcard.version, purpose: "personal-output", decision: "approved-in-simulation" });
 check("guardian sim approves asset", r.data.exportDecision?.ok, r.data);
-r = await a("POST", "/api/render", { storyId: minor.id, kind: "card", outputLanguage: "en", showStoryLabel: false });
+r = await a("POST", "/api/render", { storyId: minor.id, kind: "card", outputLanguage: "en" });
 mcard = r.data.asset;
 r = await a("POST", "/api/approve", { assetId: mcard.id, assetVersion: mcard.version, purpose: "personal-output", decision: "granted" });
 check("changed asset needs guardian again", r.data.exportDecision?.code === "needs-guardian", r.data);

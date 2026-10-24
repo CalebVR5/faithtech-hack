@@ -6,7 +6,7 @@ import { useApp } from "@/components/app-state";
 import { DeleteStory, NewStoryButton } from "@/components/flow/delete-story";
 import { GuardianAssetPanel } from "@/components/flow/guardian-asset";
 import { ErrorNote } from "@/components/flow/steps-start";
-import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
+import { bigButton, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,6 +38,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     </Button>
   );
 }
+
+/** Selection is teal; gold stays reserved for the share action. */
+const toggleClass =
+  "h-auto min-h-11 whitespace-normal py-2 text-sm aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:font-bold aria-pressed:text-primary-foreground aria-pressed:hover:bg-river-deep";
 
 export function ShareStep() {
   const { t, flow, update, errorText } = useApp();
@@ -79,6 +83,16 @@ export function ShareStep() {
       setBusy(false);
     }
   };
+
+  // The approved file is fetched on arrival, so the sharing buttons are ready without an extra step.
+  const latestPrepare = useRef(prepare);
+  useEffect(() => {
+    latestPrepare.current = prepare;
+  });
+  useEffect(() => {
+    const timer = window.setTimeout(() => void latestPrepare.current(), 0);
+    return () => window.clearTimeout(timer);
+  }, [asset.id, asset.version]);
 
   const share = async () => {
     if (!file) return;
@@ -148,9 +162,26 @@ export function ShareStep() {
     <StepShell title={t.share.title} lead={t.share.lead}>
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-2 font-semibold text-lg">{t.share.intention}</legend>
-        <OptionButton title={t.share.feedback} selected={intention === "feedback"} onClick={() => chooseIntention("feedback")} />
-        <OptionButton title={t.share.finished} selected={intention === "finished"} onClick={() => chooseIntention("finished")} />
-        <OptionButton title={t.share.keepCopy} selected={intention === "keep"} onClick={() => chooseIntention("keep")} />
+        {/* A compact choice in the same style as the destinations, so sharing stays near the top. */}
+        <div className="grid grid-cols-3 gap-2">
+          {(
+            [
+              ["feedback", t.share.feedback],
+              ["finished", t.share.finished],
+              ["keep", t.share.keepCopy],
+            ] as const
+          ).map(([id, label]) => (
+            <Button
+              key={id}
+              variant="outline"
+              aria-pressed={intention === id}
+              className={toggleClass}
+              onClick={() => chooseIntention(id)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
       </fieldset>
 
       {intention !== "keep" && (
@@ -179,9 +210,15 @@ export function ShareStep() {
       )}
 
       {!file ? (
-        <Button className={`${bigButton} sm:w-fit`} onClick={prepare} disabled={busy}>
-          {busy ? t.share.preparing : t.share.prepare}
-        </Button>
+        busy || !error ? (
+          <p aria-live="polite" className="text-muted-foreground">
+            {t.share.preparing}
+          </p>
+        ) : (
+          <Button variant="outline" className={`${bigButton} sm:w-fit`} onClick={prepare} disabled={busy}>
+            {t.common.tryAgain}
+          </Button>
+        )
       ) : (
         <div className="flex flex-col gap-4">
           {intention !== "keep" && (
@@ -191,8 +228,7 @@ export function ShareStep() {
                   key={d.id}
                   variant="outline"
                   aria-pressed={destination === d.id}
-                  // Selection is teal; gold stays reserved for the share action below.
-                  className="h-auto min-h-11 flex-col gap-1 whitespace-normal py-2 text-sm aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:font-bold aria-pressed:text-primary-foreground aria-pressed:hover:bg-river-deep"
+                  className={`${toggleClass} flex-col gap-1`}
                   onClick={() => {
                     setDestination(d.id);
                     setShareNote(null);

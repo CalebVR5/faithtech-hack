@@ -1,18 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { FlaskConical } from "lucide-react";
 import { useApp } from "@/components/app-state";
 import { LANGUAGE_IDS, LANGUAGES, isLanguageId } from "@/lib/domain/languages";
 
-/** The river-teal shell that frames every screen, plus the prototype notice. */
+/** The river-teal shell that frames every screen. */
 export function SiteHeader() {
-  const { t, ui, setUi, provider } = useApp();
+  const { t, ui, setUi } = useApp();
   return (
     <header>
       <div className="bg-river text-river-foreground">
         <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <Link href="/" className="font-heading text-lg font-bold text-river-foreground no-underline">
+          <Link href="/" className="font-heading text-2xl leading-tight font-bold tracking-tight text-river-foreground no-underline sm:text-[1.75rem]">
             {t.common.appName}
           </Link>
           <div className="flex items-center gap-4 text-sm">
@@ -38,16 +37,6 @@ export function SiteHeader() {
               {t.common.privacy}
             </Link>
           </div>
-        </div>
-      </div>
-      <div className="border-b border-border bg-accent text-accent-foreground">
-        <div className="mx-auto flex w-full max-w-2xl items-start gap-2 px-4 py-2 text-sm">
-          <FlaskConical className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <p>
-            <strong>{t.common.prototypeTitle}.</strong> {t.common.prototypeBody}
-            {provider === "mock" && <span className="text-muted-foreground"> {t.common.mockMode}.</span>}
-            {ui !== "en" && <span className="text-muted-foreground"> {t.common.draftTranslation}</span>}
-          </p>
         </div>
       </div>
     </header>

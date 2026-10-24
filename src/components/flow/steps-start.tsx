@@ -13,39 +13,11 @@ import { api } from "@/lib/client/api";
 import { formatKey, recommendFormats, defaultShowName } from "@/lib/domain/privacy-guide";
 import type { AgeGate, PrivacyPreferences } from "@/lib/domain/types";
 
+/**
+ * The welcome screen asks the age question directly, so the first tap is a
+ * real answer rather than "Start" (plan section 3: no story content before it).
+ */
 export function WelcomeStep() {
-  const { t, go } = useApp();
-  return (
-    <StepShell
-      title={t.welcome.title}
-      lead={t.welcome.lead}
-      showBack={false}
-      actions={
-        <Button className={bigButton} onClick={() => go("age")}>
-          {t.welcome.start}
-        </Button>
-      }
-    >
-      <EarlierStories />
-      <div className="rounded-xl border bg-card p-5">
-        <h2 className="mb-3 font-semibold">{t.welcome.stepsTitle}</h2>
-        <ol className="flex flex-col gap-2">
-          {t.welcome.steps.map((s, i) => (
-            <li key={s} className="flex items-start gap-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm text-primary-foreground" aria-hidden>
-                {i + 1}
-              </span>
-              <span className="pt-0.5">{s}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-      <p className="text-sm text-muted-foreground">{t.common.notConnected}</p>
-    </StepShell>
-  );
-}
-
-export function AgeStep() {
   const { t, ui, update, go, errorText } = useApp();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,13 +37,31 @@ export function AgeStep() {
   };
 
   return (
-    <StepShell title={t.age.title} lead={t.age.why}>
-      <div className="flex flex-col gap-3">
+    <StepShell title={t.welcome.title} lead={t.welcome.lead} showBack={false}>
+      <EarlierStories />
+      <section aria-labelledby="age-title" className="flex flex-col gap-3">
+        <h2 id="age-title" className="font-heading text-xl font-bold">
+          {t.age.title}
+        </h2>
+        <p className="text-muted-foreground">{t.age.why}</p>
         <OptionButton title={t.age.adult} onClick={() => answer("adult")} disabled={busy} />
         <OptionButton title={t.age.minor} onClick={() => answer("under-18")} disabled={busy} />
-        <OptionButton title={t.age.notSure} onClick={() => answer("not-sure")} disabled={busy} />
-      </div>
-      {error && <ErrorNote message={error} />}
+        {error && <ErrorNote message={error} />}
+      </section>
+      <details className="rounded-xl border bg-card p-4">
+        <summary className="cursor-pointer font-semibold">{t.welcome.stepsTitle}</summary>
+        <ol className="mt-3 flex flex-col gap-2">
+          {t.welcome.steps.map((s, i) => (
+            <li key={s} className="flex items-start gap-3">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm text-primary-foreground" aria-hidden>
+                {i + 1}
+              </span>
+              <span className="pt-0.5">{s}</span>
+            </li>
+          ))}
+        </ol>
+      </details>
+      <p className="text-sm text-muted-foreground">{t.common.notConnected}</p>
     </StepShell>
   );
 }

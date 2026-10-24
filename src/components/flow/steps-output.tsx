@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { AArrowDown, AArrowUp, BadgeCheck, Clapperboard, Image as ImageIcon, Mic, MicOff, Video, Volume2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AArrowDown, AArrowUp, BadgeCheck, Clapperboard, Image as ImageIcon, LoaderCircle, Mic, MicOff, Video, Volume2 } from "lucide-react";
 import { useApp, type OutputChoices } from "@/components/app-state";
 import { CloudConsent } from "@/components/cloud-consent";
 import { DeleteStory } from "@/components/flow/delete-story";
 import { GuardianAssetPanel } from "@/components/flow/guardian-asset";
 import { ErrorNote } from "@/components/flow/steps-start";
 import { useTranscribe } from "@/components/flow/steps-capture";
+import { FaceCoverEditor } from "@/components/face-cover-editor";
 import { RecorderPanel } from "@/components/recorder";
 import { bigButton, checkRow, OptionButton, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,7 +19,7 @@ import { api } from "@/lib/client/api";
 import { LANGUAGE_IDS, LANGUAGES, isLanguageId, type LanguageId } from "@/lib/domain/languages";
 import { CARD_MAX_CHARS } from "@/lib/domain/limits";
 import { conflictsFor, isRecommended } from "@/lib/domain/privacy-guide";
-import { sentenceSpans, type SentenceSpan } from "@/lib/domain/text";
+import { sentenceSpans } from "@/lib/domain/text";
 import type { NarrationMode } from "@/lib/domain/types";
 
 export function FormatStep() {
@@ -137,14 +138,6 @@ export function FormatStep() {
         </div>
       )}
 
-      <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-        <h2 className="mb-1 font-semibold">{t.format.unavailableTitle}</h2>
-        <ul className="list-disc pl-5">
-          {t.format.unavailable.map((u) => (
-            <li key={u}>{u}</li>
-          ))}
-        </ul>
-      </div>
     </StepShell>
   );
 }
@@ -177,7 +170,6 @@ export function ScriptStep() {
       </div>
       {awaitingConsent ? (
         <CloudConsent
-          purpose="transcription"
           keepsRecording
           keepsVideo={media === "video"}
           onAgree={() => {
@@ -196,15 +188,6 @@ export function ScriptStep() {
   );
 }
 
-/** The default card passage is the longest run of opening sentences that fits; the author changes it freely. */
-function defaultRange(sentences: SentenceSpan[], kind: OutputChoices["kind"]): [number, number] {
-  if (sentences.length === 0) return [0, 0];
-  if (kind !== "card") return [0, sentences.length - 1];
-  let end = 0;
-  while (end + 1 < sentences.length && sentences[end + 1].end - sentences[0].start <= CARD_MAX_CHARS) end++;
-  return [0, end];
-}
-
 /** Keeps the selection one contiguous passage: extend or trim at the edges, otherwise start again. */
 function toggleSentence([start, end]: [number, number], i: number): [number, number] {
   if (i === start - 1) return [i, end];
@@ -221,20 +204,31 @@ export function PreviewStep() {
   const choices = flow.choices;
   const locale = LANGUAGES[story.sourceLanguage].uiLocale;
   const sentences = useMemo(() => sentenceSpans(story.reviewedText, locale), [story.reviewedText, locale]);
-  const range = choices.range && choices.range[1] < sentences.length ? choices.range : defaultRange(sentences, choices.kind);
+  // A whole story that fits is selected for the person; a card from a longer one starts empty, so they choose.
+  const wholeFits = sentences.length > 0 && sentences.at(-1)!.end - sentences[0].start <= CARD_MAX_CHARS;
+  const range: [number, number] | null =
+    choices.range && choices.range[1] < sentences.length
+      ? choices.range
+      : choices.kind === "card" && !wholeFits
+        ? null
+        : sentences.length
+          ? [0, sentences.length - 1]
+          : null;
   const outputLanguage = choices.outputLanguage ?? story.sourceLanguage;
   const usesTake = choices.kind === "captioned-video" || (choices.kind === "narrated-video" && choices.narration === "recorded");
-  const span: [number, number] | undefined = sentences.length ? [sentences[range[0]].start, sentences[range[1]].end] : undefined;
+  const span: [number, number] | undefined = range ? [sentences[range[0]].start, sentences[range[1]].end] : undefined;
   const passageChars = span ? span[1] - span[0] : 0;
   const tooLong = choices.kind === "card" && passageChars > CARD_MAX_CHARS;
   const showName = choices.showName && Boolean(story.displayName);
+  // Covering the face starts on when the person said they'd like to keep it out.
+  const coverOn = choices.kind === "captioned-video" && (choices.coverFace ?? story.privacy.hideFace);
+  const faceCover = coverOn ? choices.faceCover : null;
   const nameConflict = conflictsFor(story.privacy, { kind: choices.kind, showName }).includes("name-shown");
 
-  const [consentFor, setConsentFor] = useState<"translation" | "narration" | null>(null);
-  const [pendingLanguage, setPendingLanguage] = useState<LanguageId | null>(null);
+  const [askConsent, setAskConsent] = useState<{ language?: LanguageId } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checked, setChecked] = useState(false);
+  const rendering = useRef<string | null>(null);
 
   const setChoice = (patch: Partial<OutputChoices>) => update((s) => ({ choices: { ...s.choices, ...patch } }));
   const key = JSON.stringify({
@@ -243,20 +237,22 @@ export function PreviewStep() {
     narration: choices.kind === "card" ? "none" : choices.narration,
     outputLanguage,
     showName,
-    label: choices.showStoryLabel,
     span: usesTake ? null : span,
+    cover: faceCover,
   });
   const asset = flow.asset?.asset.spec.kind === choices.kind ? flow.asset : null;
   const current = asset && flow.renderedKey === key && asset.asset.status === "rendered";
 
-  const render = async (narrationAgreed = flow.cloud.narration) => {
-    if (choices.kind === "narrated-video" && choices.narration === "synthetic" && !narrationAgreed) {
-      setConsentFor("narration");
-      return;
-    }
+  // One notice covers translation and the synthetic voice for this story.
+  const cloudAgreed = flow.cloud.translation && flow.cloud.narration;
+  const needsCloud = outputLanguage !== story.sourceLanguage || (choices.kind === "narrated-video" && choices.narration === "synthetic");
+  // With a cover requested, wait until it's placed: never render the uncovered video instead.
+  const canRender = (usesTake || range !== null) && !tooLong && (!needsCloud || cloudAgreed) && (!coverOn || faceCover !== null);
+
+  const render = async () => {
+    rendering.current = key;
     setBusy(true);
     setError(null);
-    setChecked(false);
     try {
       const state = await api.render({
         storyId: story.id,
@@ -264,9 +260,9 @@ export function PreviewStep() {
         narration: choices.narration,
         outputLanguage,
         showName,
-        showStoryLabel: choices.showStoryLabel,
         span: usesTake ? undefined : span,
-        cloud: { ...flow.cloud, narration: narrationAgreed },
+        faceCover: faceCover ?? undefined,
+        cloud: { translation: cloudAgreed, narration: cloudAgreed },
       });
       update({ asset: state, renderedKey: key });
     } catch (err) {
@@ -276,6 +272,19 @@ export function PreviewStep() {
       setBusy(false);
     }
   };
+  const latestRender = useRef(render);
+  useEffect(() => {
+    latestRender.current = render;
+  });
+
+  // The preview follows the choices: it renders on arrival and shortly after any change,
+  // so there's no separate "make preview" step. A failed render waits for "Try again".
+  useEffect(() => {
+    // A key that already failed waits for "Try again"; any change makes a new key and tries again.
+    if (!canRender || busy || current || rendering.current === key) return;
+    const timer = window.setTimeout(() => void latestRender.current(), 600);
+    return () => window.clearTimeout(timer);
+  }, [canRender, busy, current, key]);
 
   const approve = async () => {
     if (!asset) return;
@@ -284,6 +293,8 @@ export function PreviewStep() {
     try {
       const state = await api.approve({ assetId: asset.asset.id, assetVersion: asset.asset.version, purpose: "personal-output", decision: "granted" });
       update({ asset: state });
+      // Approving is the step into sharing; a minor's version still waits for the guardian here.
+      if (state.exportDecision.ok) go("share");
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -293,9 +304,8 @@ export function PreviewStep() {
 
   const chooseLanguage = (value: string) => {
     if (!isLanguageId(value)) return;
-    if (value !== story.sourceLanguage && !flow.cloud.translation) {
-      setPendingLanguage(value);
-      setConsentFor("translation");
+    if (value !== story.sourceLanguage && !cloudAgreed) {
+      setAskConsent({ language: value });
       return;
     }
     setChoice({ outputLanguage: value });
@@ -303,163 +313,92 @@ export function PreviewStep() {
 
   const approved = current && asset.exportDecision.ok;
   const personalConsent = asset?.consents.find((c) => c.purpose === "personal-output" && c.decision === "granted");
-  const included = t.preview.included;
 
+  const passageField = (
+    <>
+          {usesTake ? (
+            <p className="text-muted-foreground">{choices.kind === "captioned-video" ? t.preview.wholeVideoTake : t.preview.wholeTake}</p>
+          ) : (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="font-semibold text-lg">{t.preview.passage}</legend>
+              <p className="text-sm text-muted-foreground">{t.preview.passageHint}</p>
+              <div lang={locale} className="flex flex-col gap-1 rounded-xl border bg-card p-3 font-story text-lg leading-relaxed">
+                {sentences.map((s, i) => {
+                  const on = range !== null && i >= range[0] && i <= range[1];
+                  return (
+                    <button
+                      key={s.start}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setChoice({ range: range ? toggleSentence(range, i) : [i, i] })}
+                      className={`rounded-md px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        on ? "bg-secondary text-foreground ring-1 ring-primary/50" : "text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {s.text}
+                    </button>
+                  );
+                })}
+              </div>
+              {choices.kind === "card" && (
+                <p aria-live="polite" className={tooLong ? "font-medium text-destructive" : "text-sm text-muted-foreground"}>
+                  {range === null
+                    ? t.preview.chooseFirst(CARD_MAX_CHARS)
+                    : tooLong
+                      ? t.preview.passageTooLong(CARD_MAX_CHARS)
+                      : t.preview.passageCount(passageChars, CARD_MAX_CHARS)}
+                </p>
+              )}
+            </fieldset>
+          )}
+
+    </>
+  );
+
+  // The preview and its approval come first; choices to change it sit below.
+  const choosePassageFirst = !usesTake && range === null;
   return (
     <StepShell title={t.preview.title}>
-      {usesTake ? (
-        <p className="text-muted-foreground">{choices.kind === "captioned-video" ? t.preview.wholeVideoTake : t.preview.wholeTake}</p>
-      ) : (
-        <fieldset className="flex flex-col gap-2">
-          <legend className="font-semibold text-lg">{t.preview.passage}</legend>
-          <p className="text-sm text-muted-foreground">{t.preview.passageHint}</p>
-          <div lang={locale} className="flex flex-col gap-1 rounded-xl border bg-card p-3 font-story text-lg leading-relaxed">
-            {sentences.map((s, i) => {
-              const on = i >= range[0] && i <= range[1];
-              return (
-                <button
-                  key={s.start}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setChoice({ range: toggleSentence(range, i) })}
-                  className={`rounded-md px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                    on ? "bg-secondary text-foreground ring-1 ring-primary/50" : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {s.text}
-                </button>
-              );
-            })}
-          </div>
-          {choices.kind === "card" && (
-            <p aria-live="polite" className={tooLong ? "font-medium text-destructive" : "text-sm text-muted-foreground"}>
-              {tooLong ? t.preview.passageTooLong(CARD_MAX_CHARS) : t.preview.passageCount(passageChars, CARD_MAX_CHARS)}
-            </p>
-          )}
-        </fieldset>
+      {flow.history.at(-1) !== "format" && (
+        <Button variant="link" className="h-auto w-fit p-0 text-base" onClick={() => go("format")}>
+          {t.preview.changeFormat}
+        </Button>
       )}
-
-      <div className="flex flex-col gap-2">
-        <label htmlFor="output-language" className="font-semibold text-lg">
-          {t.preview.language}
-        </label>
-        <select
-          id="output-language"
-          className="h-11 rounded-lg border border-input bg-background px-3 text-base"
-          value={outputLanguage}
-          onChange={(e) => chooseLanguage(e.target.value)}
-        >
-          {LANGUAGE_IDS.map((id) => (
-            <option key={id} value={id} lang={LANGUAGES[id].uiLocale}>
-              {id === story.sourceLanguage ? t.preview.original(LANGUAGES[id].displayName) : LANGUAGES[id].displayName}
-            </option>
-          ))}
-        </select>
-        {outputLanguage !== story.sourceLanguage && <p className="text-sm">{t.preview.machineTranslated}</p>}
-        {choices.kind === "narrated-video" && choices.narration !== "none" && <p className="text-sm text-muted-foreground">{t.preview.narrationStays}</p>}
-      </div>
-
-      {consentFor && (
+      {(askConsent || (needsCloud && !cloudAgreed)) && (
         <CloudConsent
-          purpose={consentFor}
           onAgree={() => {
-            if (consentFor === "translation" && pendingLanguage) setChoice({ outputLanguage: pendingLanguage });
-            // Agreeing to narration was part of asking for the preview, so carry on with it.
-            if (consentFor === "narration") void render(true);
-            setConsentFor(null);
-            setPendingLanguage(null);
+            if (askConsent?.language) setChoice({ outputLanguage: askConsent.language });
+            setAskConsent(null);
           }}
           onDecline={() => {
-            setConsentFor(null);
-            setPendingLanguage(null);
+            setAskConsent(null);
+            // Without the service, fall back to what needs none: the story's language and no synthetic voice.
+            if (!askConsent) setChoice({ outputLanguage: story.sourceLanguage, ...(choices.narration === "synthetic" ? { narration: "none" } : {}) });
           }}
         />
       )}
 
-      <div className="flex flex-col gap-3">
-        <label className={checkRow}>
-          <Checkbox checked={showName} disabled={!story.displayName} onCheckedChange={(c) => setChoice({ showName: c === true })} />
-          <span>
-            {t.preview.showName}
-            {story.displayName && <span className="text-muted-foreground"> ({story.displayName})</span>}
-          </span>
-        </label>
-        {!story.displayName && <p className="text-sm text-muted-foreground">{t.preview.noName}</p>}
-        {nameConflict && (
-          <Alert>
-            <AlertDescription>{t.preview.nameConflict}</AlertDescription>
-          </Alert>
-        )}
-        <label className={checkRow}>
-          <Checkbox checked={choices.showStoryLabel} onCheckedChange={(c) => setChoice({ showStoryLabel: c === true })} />
-          <span>{t.preview.showLabel}</span>
-        </label>
-      </div>
+      {choosePassageFirst && passageField}
 
-      {/* One gold action per moment: making the preview, then approving it, then sharing. */}
-      <Button
-        variant={current ? "outline" : "default"}
-        className={`${bigButton} sm:w-fit`}
-        onClick={() => render()}
-        disabled={busy || tooLong || Boolean(consentFor)}
-      >
-        {asset ? t.preview.update : t.preview.make}
-      </Button>
-      {busy && <p aria-live="polite">{t.preview.making}</p>}
-      {error && <ErrorNote message={error} />}
-      {asset && !current && !busy && (
-        <Alert>
-          <AlertDescription>{t.preview.outdated}</AlertDescription>
-        </Alert>
-      )}
-
-      {current && asset.asset.previewUrl && (
+      {current && asset.asset.previewUrl ? (
         <div className="flex flex-col gap-4">
-          <div className="mx-auto w-full max-w-sm overflow-hidden rounded-xl border bg-black shadow-sm">
+          {/* Capped at about 60% of the screen so "Approve" sits within a short scroll on a phone. */}
+          <div className="mx-auto w-fit max-w-full overflow-hidden rounded-xl border bg-black shadow-sm">
             {asset.asset.spec.kind === "card" ? (
               // eslint-disable-next-line @next/next/no-img-element -- private, session-owned file; not for next/image optimization
-              <img src={asset.asset.previewUrl} alt={asset.asset.spec.cardText ?? t.preview.previewAlt} className="block w-full" />
+              <img src={asset.asset.previewUrl} alt={asset.asset.spec.cardText ?? t.preview.previewAlt} className="block max-h-[62vh] w-auto max-w-full" />
             ) : (
-              <video src={asset.asset.previewUrl} controls playsInline className="block w-full" />
+              <video src={asset.asset.previewUrl} controls playsInline className="block max-h-[62vh] w-auto max-w-full" />
             )}
           </div>
           {asset.asset.spec.kind !== "card" && (
             <details className="rounded-lg border bg-card p-3 text-sm">
-              <summary className="cursor-pointer font-medium">{t.preview.included.words}</summary>
+              <summary className="cursor-pointer font-medium">{t.preview.captionWords}</summary>
               <p lang={LANGUAGES[asset.asset.spec.captionLanguage].uiLocale} className="mt-2">
                 {asset.asset.spec.captions.map((c) => c.text).join(" ")}
               </p>
             </details>
           )}
-
-          <div className="rounded-xl border bg-card p-4">
-            <h2 className="mb-3 font-semibold text-lg">{t.preview.includedTitle}</h2>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-              <dt className="text-muted-foreground">{included.format}</dt>
-              <dd>{{ card: included.card, "narrated-video": included.video, "captioned-video": included.faceVideo }[asset.asset.spec.kind]}</dd>
-              <dt className="text-muted-foreground">{included.words}</dt>
-              <dd>
-                {usesTake ? included.wholeTake : asset.asset.spec.excerpt ? included.excerpt(passageChars) : included.whole}
-              </dd>
-              <dt className="text-muted-foreground">{included.name}</dt>
-              <dd>{asset.asset.spec.displayName ? included.nameShown(asset.asset.spec.displayName) : included.nameHidden}</dd>
-              <dt className="text-muted-foreground">{included.voice}</dt>
-              <dd>{{ recorded: included.recorded, synthetic: included.synthetic, none: included.none }[asset.asset.spec.narration]}</dd>
-              {asset.asset.spec.narration !== "none" && (
-                <>
-                  <dt className="text-muted-foreground">{included.spoken}</dt>
-                  <dd>{LANGUAGES[asset.asset.spec.narrationLanguage].displayName}</dd>
-                </>
-              )}
-              <dt className="text-muted-foreground">{included.text}</dt>
-              <dd>
-                {LANGUAGES[asset.asset.spec.captionLanguage].displayName}
-                {asset.asset.spec.machineTranslated && ` · ${t.preview.machineTranslated}`}
-              </dd>
-              <dt className="text-muted-foreground">{included.visuals}</dt>
-              <dd>{asset.asset.spec.footage === "original" ? included.ownFootage : included.plain}</dd>
-            </dl>
-          </div>
 
           {approved ? (
             <div className="flex flex-col gap-2 rounded-xl border-2 border-primary/50 bg-card p-4">
@@ -471,26 +410,117 @@ export function PreviewStep() {
           ) : personalConsent ? null : (
             <div className="flex flex-col gap-3 rounded-xl border bg-card p-4">
               <h2 className="font-semibold text-lg">{t.preview.approveTitle}</h2>
-              <label className="flex cursor-pointer items-start gap-3">
-                <Checkbox className="mt-1" checked={checked} onCheckedChange={(c) => setChecked(c === true)} />
-                <span>{t.preview.approveCheck}</span>
-              </label>
-              <Button className={`${bigButton} sm:w-fit`} onClick={approve} disabled={!checked || busy}>
-                {t.preview.approve}
+              <p>{t.preview.approveCheck}</p>
+              {/* One tap approves this exact file and moves on to sharing. */}
+              <Button className={`${bigButton} sm:w-fit`} onClick={approve} disabled={busy}>
+                {t.preview.approveAndContinue}
               </Button>
+              <p className="text-sm text-muted-foreground">{t.preview.keepPrivate}</p>
             </div>
           )}
 
           {asset.needsGuardian && personalConsent && <GuardianAssetPanel state={asset} purposes={["personal-output"]} />}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">{t.preview.keepPrivate}</p>
-            <Button variant={approved ? "default" : "outline"} className={bigButton} onClick={() => go("share")} disabled={!approved}>
+          {approved && (
+            <Button className={`${bigButton} sm:w-fit`} onClick={() => go("share")}>
               {t.preview.toShare}
             </Button>
-          </div>
+          )}
         </div>
+      ) : (
+        !choosePassageFirst &&
+        !(needsCloud && !cloudAgreed) && (
+          <div
+            className="mx-auto flex w-full flex-col items-center justify-center gap-3 rounded-xl border bg-muted p-6 text-center"
+            style={
+              choices.kind === "card"
+                ? { aspectRatio: "1080 / 1350", maxWidth: "min(100%, calc(62vh * 1080 / 1350))" }
+                : { aspectRatio: "720 / 1280", maxWidth: "min(100%, calc(62vh * 720 / 1280))" }
+            }
+          >
+            {error ? (
+              <>
+                <ErrorNote message={error} />
+                <Button
+                  variant="outline"
+                  className={bigButton}
+                  onClick={() => {
+                    rendering.current = null;
+                    void render();
+                  }}
+                  disabled={busy}
+                >
+                  {t.common.tryAgain}
+                </Button>
+              </>
+            ) : (
+              <p aria-live="polite" className="flex items-center gap-2 text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> {t.preview.making}
+              </p>
+            )}
+          </div>
+        )
       )}
+
+      <section aria-labelledby="adjust-title" className="flex flex-col gap-5 border-t pt-6">
+        <h2 id="adjust-title" className="font-heading text-xl font-bold">
+          {t.preview.adjust}
+        </h2>
+        {!choosePassageFirst && passageField}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="output-language" className="font-semibold text-lg">
+            {t.preview.language}
+          </label>
+          <select
+            id="output-language"
+            className="h-11 rounded-lg border border-input bg-background px-3 text-base"
+            value={outputLanguage}
+            onChange={(e) => chooseLanguage(e.target.value)}
+          >
+            {LANGUAGE_IDS.map((id) => (
+              <option key={id} value={id} lang={LANGUAGES[id].uiLocale}>
+                {id === story.sourceLanguage ? t.preview.original(LANGUAGES[id].displayName) : LANGUAGES[id].displayName}
+              </option>
+            ))}
+          </select>
+          {outputLanguage !== story.sourceLanguage && <p className="text-sm">{t.preview.machineTranslated}</p>}
+          {choices.kind === "narrated-video" && choices.narration !== "none" && <p className="text-sm text-muted-foreground">{t.preview.narrationStays}</p>}
+        </div>
+
+        {choices.kind === "captioned-video" && story.take?.videoRef && (
+          <div className="flex flex-col gap-3">
+            <label className={checkRow}>
+              <Checkbox checked={coverOn} onCheckedChange={(c) => setChoice({ coverFace: c === true })} />
+              <span>{t.preview.coverFace}</span>
+            </label>
+            {coverOn && (
+              <FaceCoverEditor
+                videoUrl={`/api/media/${story.take.videoRef}`}
+                durationMs={story.take.durationMs}
+                cover={choices.faceCover}
+                onChange={(cover) => setChoice({ faceCover: cover })}
+              />
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3">
+          <label className={checkRow}>
+            <Checkbox checked={showName} disabled={!story.displayName} onCheckedChange={(c) => setChoice({ showName: c === true })} />
+            <span>
+              {t.preview.showName}
+              {story.displayName && <span className="text-muted-foreground"> ({story.displayName})</span>}
+            </span>
+          </label>
+          {!story.displayName && <p className="text-sm text-muted-foreground">{t.preview.noName}</p>}
+          {nameConflict && (
+            <Alert>
+              <AlertDescription>{t.preview.nameConflict}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+      </section>
       <DeleteStory />
     </StepShell>
   );

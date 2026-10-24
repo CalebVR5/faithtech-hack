@@ -29,6 +29,14 @@ const PLACES: Record<LanguageId, string[]> = {
   "pt-BR": ["igreja", "escola", "universidade", "faculdade", "trabalho", "escritório", "rua", "vila", "bairro", "cidade", "lago", "rio", "acampamento"],
 };
 
+/** Words that follow a spoken age ("fourteen years", "veintidós años"), so the age itself is flagged. */
+const AGE_WORDS: Record<LanguageId, string[]> = {
+  en: ["years", "year", "yrs"],
+  fr: ["ans", "an"],
+  "es-419": ["años", "año"],
+  "pt-BR": ["anos", "ano"],
+};
+
 /** Capitalized words that are rarely identifying on their own. */
 const COMMON_CAPITALIZED = new Set(["I", "I'm", "I've", "I'd", "I'll", "God", "Jesus", "Christ", "Dieu", "Jésus", "Dios", "Jesús", "Deus", "Sunday", "Sundays"]);
 
@@ -39,19 +47,27 @@ export function findIdentifyingDetails(text: string, language: LanguageId): Iden
   const family = new Set(FAMILY[language]);
   const places = new Set(PLACES[language]);
   const sentenceStarts = new Set(sentenceSpans(text, locale).map((s) => s.start));
+  const ageWords = new Set(AGE_WORDS[language]);
   const flags: IdentifyingFlag[] = [];
+  const seen = new Set<string>();
+  const words = [...text.matchAll(WORD)];
 
-  for (const match of text.matchAll(WORD)) {
+  words.forEach((match, i) => {
     const word = match[0];
     const start = match.index;
     const end = start + word.length;
     const lower = word.toLocaleLowerCase(locale);
+    const next = words[i + 1]?.[0].toLocaleLowerCase(locale);
     let kind: FlagKind | undefined;
-    if (/^\d/.test(word)) kind = "number-or-date";
+    if (/^\d/.test(word) || (next !== undefined && ageWords.has(next))) kind = "number-or-date";
     else if (family.has(lower)) kind = "family";
     else if (places.has(lower)) kind = "place-or-group";
     else if (/^\p{Lu}/u.test(word) && !sentenceStarts.has(start) && !COMMON_CAPITALIZED.has(word)) kind = "name-or-place";
-    if (kind) flags.push({ text: word, kind, start, end });
-  }
+    // Each word once, so "grandma" isn't listed twice.
+    if (kind && !seen.has(`${kind}:${lower}`)) {
+      seen.add(`${kind}:${lower}`);
+      flags.push({ text: word, kind, start, end });
+    }
+  });
   return flags;
 }
