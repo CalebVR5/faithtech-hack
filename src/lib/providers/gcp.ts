@@ -50,9 +50,50 @@ async function post<T>(url: string, body: unknown, service: string): Promise<T> 
     // Log the provider's status, never the request body (it contains story content).
     const detail = await res.text().catch(() => "");
     console.error(`[gcp] ${service} ${res.status}: ${detail.slice(0, 500)}`);
-    throw new ProviderError(`${service} returned an error (${res.status}). Your draft is safe; please try again.`);
+    throw new GcpRequestError(`${service} returned an error (${res.status}). Your draft is safe; please try again.`, res.status, detail);
   }
   return (await res.json()) as T;
+}
+
+/** A provider error that keeps Google's response text, so callers can react to specific refusals. */
+class GcpRequestError extends ProviderError {
+  constructor(
+    message: string,
+    readonly httpStatus: number,
+    readonly detail: string,
+  ) {
+    super(message);
+  }
+}
+
+// latest_long punctuates and keeps spoken numbers as words ("one night", not
+// "1 night") far better than the default model, and kept a sentence-initial
+// word the default dropped in Mexican Spanish. Some locales (es-PE) don't offer
+// it yet; those fall back to the default model. Compared on 2026-10-24.
+const PREFERRED_STT_MODEL = "latest_long";
+const unsupportedModelLocales = new Set<string>();
+
+function isUnsupportedModel(err: unknown): boolean {
+  return err instanceof GcpRequestError && err.httpStatus === 400 && /model is currently not supported/i.test(err.detail);
+}
+
+function recognize(wav: Buffer, sampleRate: number, sttLocale: string, model?: string) {
+  return post<RecognizeResponse>(
+    "https://speech.googleapis.com/v1/speech:recognize",
+    {
+      config: {
+        encoding: "LINEAR16",
+        sampleRateHertz: sampleRate,
+        languageCode: sttLocale,
+        ...(model ? { model } : {}),
+        enableWordTimeOffsets: true,
+        enableWordConfidence: true,
+        enableAutomaticPunctuation: true,
+      },
+      audio: { content: wav.toString("base64") },
+    },
+    "Speech-to-Text",
+  );
 }
 
 /** "1.200s" → 1200 */
@@ -91,21 +132,16 @@ export const gcpProvider: LanguageProvider = {
   name: "gcp",
 
   async transcribe({ wav, sampleRate, sttLocale }: TranscribeInput): Promise<Transcript> {
-    const json = await post<RecognizeResponse>(
-      "https://speech.googleapis.com/v1/speech:recognize",
-      {
-        config: {
-          encoding: "LINEAR16",
-          sampleRateHertz: sampleRate,
-          languageCode: sttLocale,
-          enableWordTimeOffsets: true,
-          enableWordConfidence: true,
-          enableAutomaticPunctuation: true,
-        },
-        audio: { content: wav.toString("base64") },
-      },
-      "Speech-to-Text",
-    );
+    let model = unsupportedModelLocales.has(sttLocale) ? "default" : PREFERRED_STT_MODEL;
+    let json: RecognizeResponse;
+    try {
+      json = await recognize(wav, sampleRate, sttLocale, model === "default" ? undefined : model);
+    } catch (err) {
+      if (!isUnsupportedModel(err)) throw err;
+      unsupportedModelLocales.add(sttLocale);
+      model = "default";
+      json = await recognize(wav, sampleRate, sttLocale);
+    }
 
     const segments: Segment[] = [];
     const words: TranscriptWord[] = [];
@@ -133,7 +169,7 @@ export const gcpProvider: LanguageProvider = {
       words,
       locale: sttLocale,
       provider: "gcp",
-      model: "speech-v1-default",
+      model: `speech-v1-${model}`,
     };
   },
 
