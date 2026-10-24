@@ -5,7 +5,7 @@
 
 import type { Segment } from "@/lib/domain/types";
 
-export const LAYOUT_VERSION = "v2-riverside";
+export const LAYOUT_VERSION = "v3-riverside";
 
 export const CARD_SIZE = { width: 1080, height: 1350 } as const;
 export const VIDEO_SIZE = { width: 720, height: 1280 } as const;
@@ -199,6 +199,8 @@ export function cardAss(input: CardLayoutInput): string {
   const events: Event[] = [];
   let layer = 0;
   if (input.storyLabel) events.push({ ...forever, layer: layer++, style: "Label", text: at(left, 110, input.storyLabel) });
+  // A second waterline at the top frames the open space the words rest beneath.
+  events.push({ ...forever, layer: layer++, style: "Label", text: waterline(left, input.storyLabel ? 170 : 110, width - left * 2, PALETTE.accent) });
   // The opening mark is decoration in gold; \\r returns to the plain style before the author's words.
   events.push({ ...forever, layer: layer++, style: "Quote", text: `{\\1c${assColor(PALETTE.accent)}&}“{\\r}${escapeAssText(input.text)}` });
   events.push({ ...forever, layer: layer++, style: "Label", text: waterline(left, WATERLINE_Y, width - left * 2, PALETTE.accent) });
@@ -244,6 +246,8 @@ export function videoAss(input: VideoLayoutInput): string {
     events.push({ ...whole, layer: layer++, style: "Note", text: at(cx, y, note) });
     y += 32;
   }
+  // Waterlines above and below frame the captions, as on the card.
+  events.push({ ...whole, layer: layer++, style: "Label", text: waterline(60, y + 14, width - 120, PALETTE.accent) });
   if (input.displayName) events.push({ ...whole, layer: layer++, style: "Name", text: at(cx, 900, `— ${input.displayName}`) });
   events.push({ ...whole, layer: layer++, style: "Label", text: waterline(60, 1010, width - 120, PALETTE.accent) });
 

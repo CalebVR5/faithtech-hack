@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "@/components/app-state";
 import { bigButton } from "@/components/step-shell";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LANGUAGES, isLanguageId } from "@/lib/domain/languages";
@@ -67,7 +67,6 @@ export default function InboxPage() {
     <div className="flex flex-col gap-6">
       <h1 className="font-heading text-3xl font-bold tracking-tight">{t.inbox.title}</h1>
       <Alert>
-        <AlertTitle>{t.common.prototypeTitle}</AlertTitle>
         <AlertDescription>{t.inbox.banner}</AlertDescription>
       </Alert>
 

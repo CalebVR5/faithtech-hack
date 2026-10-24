@@ -18,7 +18,7 @@ Tokens live in [src/app/globals.css](src/app/globals.css). Rendered cards and vi
 | `--primary` | `#0E4A55` | Selection, icons, links, progress. Teal means "chosen" or "done" |
 | `--action` | `#E9B949` | Sand-gold. **Primary action only**, always with ink text (8.6:1). Never as text on white (1.8:1) |
 | `--secondary` | `#E2EFEF` | Selected-row tint, quiet panels |
-| `--accent` | `#FBF0D2` | Sand notices that aren't errors (the prototype banner) |
+| `--accent` | `#FBF0D2` | Sand notices that aren't errors |
 | `--input` | `#6F8E93` | Control borders (3.5:1) |
 | `--ring` | `#1C8693` | Focus: a 2px ring with a 2px offset so it shows on gold, teal and white |
 | `--destructive` | `#B42318` | Errors and delete |
@@ -42,7 +42,7 @@ Tokens live in [src/app/globals.css](src/app/globals.css). Rendered cards and vi
 ## Signature: the waterline
 
 - **In the app** ([waterline.tsx](src/components/waterline.tsx)): progress through the four stages is a teal wave up to the current stage and a still dashed line beyond it. When a stage completes, the water advances once (700ms ease-out); with reduced motion it doesn't animate. On phones only the current stage is named ("2/4 · …").
-- **On exports**: a gold wave drawn with libass vector shapes. On cards, the storyteller's words rest just above the waterline, with name and labels below it, so open space reads as sky rather than a gap. On videos, the waterline sits below the captions.
+- **On exports**: gold waves drawn with libass vector shapes, one at the top under the label and one at the bottom. On cards, the storyteller's words rest just above the lower waterline, with the name and notes below it, so the open space between the two waves reads as sky. On the plain-background video, the captions sit between the two waves. The person's own video has none.
 
 **Video of me** (the person's own footage) keeps the face and room as the subject: labels and captions sit on 82%-opaque teal boxes for legibility over any picture, captions above the bottom strip where sharing apps draw controls, and no waterline over the footage. Footage is fitted and padded in teal, never cropped.
 

@@ -59,7 +59,6 @@ export function WelcomeStep() {
           ))}
         </ol>
       </details>
-      <p className="text-sm text-muted-foreground">{t.common.notConnected}</p>
     </StepShell>
   );
 }

@@ -113,7 +113,7 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
       text: cardText,
       storyLabel,
       displayName,
-      notes: [translated && labels.machineTranslated, labels.prototype].filter((n): n is string => Boolean(n)),
+      notes: [translated && labels.machineTranslated].filter((n): n is string => Boolean(n)),
     });
     return {
       file,
@@ -192,7 +192,6 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
     notes: [
       narration === "synthetic" && labels.synthetic,
       translated && labels.machineTranslated,
-      labels.prototype,
     ].filter((n): n is string => Boolean(n)),
   };
   const faceCover = video ? choices.faceCover : undefined;

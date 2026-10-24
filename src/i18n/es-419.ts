@@ -12,7 +12,6 @@ const esLatam: Messages = {
     startOver: "Empezar de nuevo",
     tryAgain: "Intentar de nuevo",
     working: "Procesando…",
-    prototypeTitle: "Prototipo: usa una historia inventada",
     privacy: "Privacidad",
     interfaceLanguage: "Idioma de la aplicación",
     deleteStory: "Borrar mi historia",
@@ -26,7 +25,6 @@ const esLatam: Messages = {
     newStoryDelete: "Borrarla y empezar otra",
     newStoryKeep: "Conservarla y empezar otra",
     newStoryCancel: "Quedarme aquí",
-    notConnected: "Solo historias ficticias. Sin conexión con baptize.org.",
     errorFallback: "Algo salió mal. Tu borrador está a salvo; inténtalo de nuevo.",
   },
   welcome: {
@@ -54,7 +52,7 @@ const esLatam: Messages = {
     title: "Un padre, madre o tutor necesita participar",
     body: "Como tienes menos de 18 años, o no estás seguro/a, un padre, madre o tutor debe aprobar antes de escribir, grabar, guardar o compartir una historia aquí.",
     simTitle: "Escenario de prueba: simular a un tutor",
-    simBody: "Este prototipo no puede verificar quién es el tutor. Estos botones solo muestran que todo sigue bloqueado hasta la aprobación. Un servicio real necesitaría un proceso adecuado.",
+    simBody: "Esta aplicación no puede verificar quién es el tutor. Estos botones simulan su decisión, para mostrar que todo sigue bloqueado hasta la aprobación.",
     approve: "Simular: el tutor aprueba",
     decline: "Simular: el tutor no aprueba",
     declinedTitle: "Un tutor no lo aprobó",
@@ -79,7 +77,7 @@ const esLatam: Messages = {
     upload: "Subir una grabación",
     uploadHint: "Un archivo de audio de hasta 60 segundos y 10 MB.",
     sample: "Usar una historia de ejemplo",
-    sampleHint: "Historias inventadas para probar el prototipo.",
+    sampleHint: "Historias inventadas para probar.",
     sampleScenario: "Prueba:",
     film: "Grábate en video",
     filmHint: (seconds: number) => `Un video de hasta ${seconds} segundos. Aparecerán tu cara, tu voz y lo que te rodea.`,
@@ -139,7 +137,7 @@ const esLatam: Messages = {
     mockNote: "Esta demostración está en modo simulado: el servicio simulado funciona en esta computadora y nada se envía a Google. Los resultados son ejemplos etiquetados.",
     keepNote: "La aplicación guarda una copia convertida de tu grabación en su servidor por hasta 1 hora para poder usarla en un video. Si borras tu historia, se elimina antes.",
     keepVideoNote: "La aplicación guarda tu video en su servidor hasta 1 hora para crear tu video. Solo el sonido se envía al servicio de reconocimiento de voz. Si borras tu historia, el video se elimina antes.",
-    retention: "El servicio la usa para devolver un resultado. Se aplican sus propias reglas de conservación, que no se han revisado para este prototipo.",
+    retention: "El servicio la usa para devolver un resultado. Se aplican sus propias reglas de conservación, que no se han revisado para esta aplicación.",
     alternative: "¿Prefieres no hacerlo? Puedes escribirla, elegir «sin voz» o mantener el idioma de tu historia.",
     agree: "Permitir",
     decline: "Ahora no",
@@ -159,7 +157,7 @@ const esLatam: Messages = {
   review: {
     title: "Tu historia",
     lead: "Todo lo que crees sale de estas palabras. Cambia lo que quieras.",
-    sample: "Historia de ejemplo (ficticia)",
+    sample: "Historia de ejemplo",
     flagsTitle: "Detalles que quizá quieras revisar",
     flagsHint: "Los nombres, lugares, fechas y familiares pueden identificarte a ti o a otras personas. Esta lista es solo una ayuda y puede pasar cosas por alto.",
     flagKinds: {
@@ -290,14 +288,14 @@ const esLatam: Messages = {
     findFile: "¿No encuentras el archivo?",
     findFileBody: "En iPhone, los archivos guardados suelen ir a la app Archivos (Descargas); usa Compartir → Guardar imagen o Guardar video para ponerlos en Fotos. En Android, búscalos en la app Archivos o Descargas, o en tu Galería.",
     relational: "¿Con quién te gustaría compartir este momento?",
-    inboxTitle: "Buzón de demostración (solo prototipo)",
+    inboxTitle: "Buzón de demostración",
     inboxBody: "Aparte, puedes enviar esta versión aprobada a un buzón de demostración que representa la revisión de Baptize. No está conectado a Baptize. Solo revisión: esto no da permiso para publicar nada.",
     inboxCheck: "Enviar esta versión al buzón de demostración para revisión",
     inboxSend: "Enviar al buzón de demostración",
     inboxNeedsGuardian: "Un tutor debe aprobar el envío de esta versión al buzón.",
     receiptTitle: "Comprobante de permiso",
     receiptTo: "Enviado a",
-    receiptToValue: "Buzón de demostración (prototipo, no Baptize)",
+    receiptToValue: "Buzón de demostración (no Baptize)",
     receiptScope: "Permiso",
     receiptScopeValue: "Solo revisión. No publicación.",
     receiptVersion: "Versión",
@@ -332,7 +330,7 @@ const esLatam: Messages = {
     "empty-recording": "Esa grabación está vacía. Inténtalo de nuevo.",
   },
   privacyPage: {
-    title: "Privacidad en este prototipo",
+    title: "Privacidad",
     updated: "Describe la versión de prueba del hackatón al 24 de octubre de 2026.",
     intro: "Esta es una versión de prueba para un hackatón. Usa solo historias inventadas. No es un servicio terminado y esto no es una política de privacidad legal.",
     sections: [
@@ -369,7 +367,7 @@ const esLatam: Messages = {
       {
         title: "Menores de edad",
         items: [
-          "Si tienes menos de 18 años o no estás seguro/a, un tutor debe aprobar antes de que escribas, grabes o compartas. En este prototipo esa aprobación solo se simula; no es una verificación.",
+          "Si tienes menos de 18 años o no estás seguro/a, un tutor debe aprobar antes de que escribas, grabes o compartas. Aquí esa aprobación solo se simula; no es una verificación.",
         ],
       },
       {
@@ -384,7 +382,7 @@ const esLatam: Messages = {
   },
   inbox: {
     title: "Buzón de demostración",
-    banner: "Buzón prototipo con historias ficticias. No conectado a Baptize. Se guarda en memoria y se vacía cuando el servidor se reinicia.",
+    banner: "Buzón de demostración. No conectado a Baptize. Se guarda en memoria y se vacía cuando el servidor se reinicia.",
     passcode: "Código del buzón",
     unlock: "Abrir buzón",
     badPasscode: "Ese código no coincide.",

@@ -12,7 +12,6 @@ const fr: Messages = {
     startOver: "Recommencer",
     tryAgain: "Réessayer",
     working: "En cours…",
-    prototypeTitle: "Prototype — utilisez une histoire inventée",
     privacy: "Confidentialité",
     interfaceLanguage: "Langue de l'application",
     deleteStory: "Supprimer mon histoire",
@@ -26,7 +25,6 @@ const fr: Messages = {
     newStoryDelete: "La supprimer et recommencer",
     newStoryKeep: "La garder et recommencer",
     newStoryCancel: "Rester ici",
-    notConnected: "Histoires fictives seulement. Aucun lien avec baptize.org.",
     errorFallback: "Un problème est survenu. Votre brouillon est conservé; veuillez réessayer.",
   },
   welcome: {
@@ -54,7 +52,7 @@ const fr: Messages = {
     title: "Un parent ou tuteur doit participer",
     body: "Comme vous avez moins de 18 ans, ou n'en êtes pas certain·e, un parent ou tuteur doit donner son accord avant qu'une histoire soit écrite, enregistrée, conservée ou partagée ici.",
     simTitle: "Scénario de test : simuler un tuteur",
-    simBody: "Ce prototype ne peut pas vérifier l'identité d'un tuteur. Ces boutons montrent seulement que tout reste bloqué jusqu'à l'accord. Un vrai service aurait besoin d'un processus adéquat.",
+    simBody: "Cette application ne peut pas vérifier l'identité d'un tuteur. Ces boutons simulent sa décision, pour montrer que tout reste bloqué jusqu'à l'accord.",
     approve: "Simuler : le tuteur accepte",
     decline: "Simuler : le tuteur refuse",
     declinedTitle: "Un tuteur a refusé",
@@ -79,7 +77,7 @@ const fr: Messages = {
     upload: "Téléverser un enregistrement",
     uploadHint: "Un fichier audio de 60 secondes et 10 Mo au maximum.",
     sample: "Utiliser une histoire exemple",
-    sampleHint: "Des histoires inventées pour essayer le prototype.",
+    sampleHint: "Des histoires inventées pour essayer.",
     sampleScenario: "Teste :",
     film: "Vous filmer",
     filmHint: (seconds: number) => `Une vidéo, jusqu'à ${seconds} secondes. Votre visage, votre voix et ce qui vous entoure y apparaîtront.`,
@@ -139,7 +137,7 @@ const fr: Messages = {
     mockNote: "Cette démo est en mode simulé : le service simulé fonctionne sur cet ordinateur et rien n'est envoyé à Google. Les résultats sont des exemples étiquetés.",
     keepNote: "L'application conserve une copie convertie de votre enregistrement sur son serveur pendant au plus 1 heure pour pouvoir l'utiliser dans une vidéo. Supprimer votre histoire l'efface plus tôt.",
     keepVideoNote: "L'application garde votre vidéo sur son serveur pendant 1 heure au plus pour créer votre vidéo. Seul le son est envoyé au service de reconnaissance vocale. Supprimer votre histoire efface la vidéo plus tôt.",
-    retention: "Le service l'utilise pour produire un résultat. Ses propres règles de conservation s'appliquent et n'ont pas été examinées pour ce prototype.",
+    retention: "Le service l'utilise pour produire un résultat. Ses propres règles de conservation s'appliquent et n'ont pas été examinées pour cette application.",
     alternative: "Vous préférez ne pas l'envoyer? Vous pouvez écrire plutôt, choisir « sans voix » ou garder la langue de votre histoire.",
     agree: "Autoriser",
     decline: "Pas maintenant",
@@ -159,7 +157,7 @@ const fr: Messages = {
   review: {
     title: "Votre histoire",
     lead: "Tout ce que vous créerez vient de ces mots. Modifiez ce que vous voulez.",
-    sample: "Histoire exemple (fictive)",
+    sample: "Histoire exemple",
     flagsTitle: "Détails que vous voudrez peut-être vérifier",
     flagsHint: "Les noms, lieux, dates et membres de la famille peuvent vous identifier, vous ou d'autres personnes. Cette liste n'est qu'une aide et peut en oublier.",
     flagKinds: {
@@ -290,14 +288,14 @@ const fr: Messages = {
     findFile: "Vous ne trouvez pas le fichier?",
     findFileBody: "Sur iPhone, les fichiers enregistrés vont souvent dans l'app Fichiers (Téléchargements); utilisez Partager → Enregistrer l'image ou la vidéo pour les mettre dans Photos. Sur Android, regardez dans l'app Fichiers ou Téléchargements, ou dans votre Galerie.",
     relational: "Avec qui aimeriez-vous partager ce moment?",
-    inboxTitle: "Boîte de démonstration (prototype seulement)",
+    inboxTitle: "Boîte de démonstration",
     inboxBody: "Séparément, vous pouvez envoyer cette version approuvée à une boîte de démonstration qui représente l'examen par Baptize. Elle n'est pas reliée à Baptize. Examen seulement : cela ne donne aucune permission de publier.",
     inboxCheck: "Envoyer cette version à la boîte de démonstration pour examen",
     inboxSend: "Envoyer à la boîte de démonstration",
     inboxNeedsGuardian: "Un tuteur doit approuver l'envoi de cette version à la boîte.",
     receiptTitle: "Reçu de permission",
     receiptTo: "Envoyé à",
-    receiptToValue: "Boîte de démonstration (prototype, pas Baptize)",
+    receiptToValue: "Boîte de démonstration (pas Baptize)",
     receiptScope: "Permission",
     receiptScopeValue: "Examen seulement. Pas de publication.",
     receiptVersion: "Version",
@@ -332,7 +330,7 @@ const fr: Messages = {
     "empty-recording": "Cet enregistrement est vide. Veuillez réessayer.",
   },
   privacyPage: {
-    title: "Confidentialité dans ce prototype",
+    title: "Confidentialité",
     updated: "Décrit la version d'essai du hackathon au 24 octobre 2026.",
     intro: "Ceci est une version d'essai pour un hackathon. Utilisez seulement des histoires inventées. Ce n'est pas un service terminé et ceci n'est pas une politique de confidentialité juridique.",
     sections: [
@@ -369,7 +367,7 @@ const fr: Messages = {
       {
         title: "Jeunes",
         items: [
-          "Si vous avez moins de 18 ans ou n'en êtes pas certain·e, un tuteur doit donner son accord avant que vous écriviez, enregistriez ou partagiez. Dans ce prototype, cet accord est seulement simulé; ce n'est pas une vérification.",
+          "Si vous avez moins de 18 ans ou n'en êtes pas certain·e, un tuteur doit donner son accord avant que vous écriviez, enregistriez ou partagiez. Ici, cet accord est seulement simulé; ce n'est pas une vérification.",
         ],
       },
       {
@@ -384,7 +382,7 @@ const fr: Messages = {
   },
   inbox: {
     title: "Boîte de démonstration",
-    banner: "Boîte prototype avec des histoires fictives. Non reliée à Baptize. Conservée en mémoire et vidée au redémarrage du serveur.",
+    banner: "Boîte de démonstration. Non reliée à Baptize. Conservée en mémoire et vidée au redémarrage du serveur.",
     passcode: "Code de la boîte",
     unlock: "Ouvrir la boîte",
     badPasscode: "Ce code ne correspond pas.",

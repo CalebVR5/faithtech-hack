@@ -25,6 +25,8 @@ export function FormatStep() {
   const { kind, narration } = flow.choices;
   const [reRecord, setReRecord] = useState(!story.take);
   const hasVideo = Boolean(story.take?.videoRef);
+  // Someone who chose to tell it by voice only isn't offered a video of themselves.
+  const voiceOnly = Boolean(story.take) && !hasVideo;
   const [reFilm, setReFilm] = useState(!hasVideo);
   const setChoice = (patch: Partial<OutputChoices>) => update((s) => ({ choices: { ...s.choices, ...patch } }));
   // Each choice says in one line what it shares, so the person decides with that in view.
@@ -50,14 +52,16 @@ export function FormatStep() {
       }
     >
       <div className="flex flex-col gap-3" role="group" aria-label={t.format.title}>
-        <OptionButton
-          icon={<Video />}
-          title={t.format.faceVideo}
-          body={t.format.faceVideoBody}
-          note={t.format.sharesFace}
-          selected={kind === "captioned-video"}
-          onClick={() => setChoice({ kind: "captioned-video" })}
-        />
+        {!voiceOnly && (
+          <OptionButton
+            icon={<Video />}
+            title={t.format.faceVideo}
+            body={t.format.faceVideoBody}
+            note={t.format.sharesFace}
+            selected={kind === "captioned-video"}
+            onClick={() => setChoice({ kind: "captioned-video" })}
+          />
+        )}
         <OptionButton
           icon={<ImageIcon />}
           title={t.format.card}

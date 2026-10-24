@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const { asset, story } = requireAsset(sessionId, body.assetId);
 
     if (body.purpose !== "personal-output" && body.purpose !== "baptize-review") {
-      return jsonError(400, "That permission isn't available in this prototype.");
+      return jsonError(400, "That permission isn't available here.");
     }
     if (body.decision !== "granted" && body.decision !== "declined") return jsonError(400, "Unknown decision.");
     // Approval names the version the person actually saw.

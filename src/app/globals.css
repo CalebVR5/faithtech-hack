@@ -88,7 +88,7 @@
   --muted: #e6efef;
   /* 5.7:1 on the ground, 6.3:1 on white. */
   --muted-foreground: #4b6469;
-  /* Sand: notices that aren't errors, such as the prototype banner. */
+  /* Sand: notices that aren't errors. */
   --accent: #fbf0d2;
   --accent-foreground: #12262b;
   --destructive: #b42318;

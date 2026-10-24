@@ -12,7 +12,6 @@ const ptBR: Messages = {
     startOver: "Recomeçar",
     tryAgain: "Tentar de novo",
     working: "Processando…",
-    prototypeTitle: "Protótipo: use uma história inventada",
     privacy: "Privacidade",
     interfaceLanguage: "Idioma do aplicativo",
     deleteStory: "Apagar minha história",
@@ -26,7 +25,6 @@ const ptBR: Messages = {
     newStoryDelete: "Apagar e começar outra",
     newStoryKeep: "Manter e começar outra",
     newStoryCancel: "Ficar aqui",
-    notConnected: "Somente histórias fictícias. Sem ligação com o baptize.org.",
     errorFallback: "Algo deu errado. Seu rascunho está salvo; tente de novo.",
   },
   welcome: {
@@ -54,7 +52,7 @@ const ptBR: Messages = {
     title: "Um responsável precisa participar",
     body: "Como você tem menos de 18 anos, ou não tem certeza, um pai, mãe ou responsável precisa aprovar antes de uma história ser escrita, gravada, guardada ou compartilhada aqui.",
     simTitle: "Cenário de teste: simular um responsável",
-    simBody: "Este protótipo não consegue verificar quem é o responsável. Estes botões só mostram que tudo continua bloqueado até a aprovação. Um serviço real precisaria de um processo adequado.",
+    simBody: "Este aplicativo não consegue verificar quem é o responsável. Estes botões simulam a decisão dele, para mostrar que tudo continua bloqueado até a aprovação.",
     approve: "Simular: o responsável aprova",
     decline: "Simular: o responsável recusa",
     declinedTitle: "Um responsável recusou",
@@ -79,7 +77,7 @@ const ptBR: Messages = {
     upload: "Enviar uma gravação",
     uploadHint: "Um arquivo de áudio de até 60 segundos e 10 MB.",
     sample: "Usar uma história de exemplo",
-    sampleHint: "Histórias inventadas para testar o protótipo.",
+    sampleHint: "Histórias inventadas para testar.",
     sampleScenario: "Testa:",
     film: "Grave um vídeo",
     filmHint: (seconds: number) => `Um vídeo de até ${seconds} segundos. Seu rosto, sua voz e o ambiente ao redor vão aparecer.`,
@@ -139,7 +137,7 @@ const ptBR: Messages = {
     mockNote: "Esta demonstração está em modo simulado: o serviço simulado roda neste computador e nada vai para o Google. Os resultados são exemplos identificados.",
     keepNote: "O aplicativo guarda uma cópia convertida da sua gravação no servidor por até 1 hora para poder usá-la em um vídeo. Apagar a sua história remove antes.",
     keepVideoNote: "O aplicativo guarda seu vídeo no servidor por até 1 hora para criar o seu vídeo. Só o som é enviado ao serviço de reconhecimento de voz. Apagar sua história remove o vídeo antes.",
-    retention: "O serviço usa isso para devolver um resultado. Valem as regras de retenção dele, que não foram analisadas para este protótipo.",
+    retention: "O serviço usa isso para devolver um resultado. Valem as regras de retenção dele, que não foram analisadas para este aplicativo.",
     alternative: "Prefere não enviar? Você pode escrever, escolher \"sem voz\" ou manter o idioma da sua história.",
     agree: "Permitir",
     decline: "Agora não",
@@ -159,7 +157,7 @@ const ptBR: Messages = {
   review: {
     title: "Sua história",
     lead: "Tudo o que você criar vem destas palavras. Mude o que quiser.",
-    sample: "História de exemplo (fictícia)",
+    sample: "História de exemplo",
     flagsTitle: "Detalhes que talvez você queira conferir",
     flagsHint: "Nomes, lugares, datas e familiares podem identificar você ou outras pessoas. Esta lista é só uma ajuda e pode deixar coisas passarem.",
     flagKinds: {
@@ -290,14 +288,14 @@ const ptBR: Messages = {
     findFile: "Não encontra o arquivo?",
     findFileBody: "No iPhone, arquivos salvos costumam ir para o app Arquivos (Downloads); use Compartilhar → Salvar Imagem ou Salvar Vídeo para colocá-los em Fotos. No Android, procure no app Arquivos ou Downloads, ou na Galeria.",
     relational: "Com quem você gostaria de compartilhar este momento?",
-    inboxTitle: "Caixa de demonstração (só no protótipo)",
+    inboxTitle: "Caixa de demonstração",
     inboxBody: "Separadamente, você pode enviar esta versão aprovada para uma caixa de demonstração que representa a análise do Baptize. Ela não está ligada ao Baptize. Só análise: isto não dá permissão para publicar nada.",
     inboxCheck: "Enviar esta versão para a caixa de demonstração para análise",
     inboxSend: "Enviar para a caixa de demonstração",
     inboxNeedsGuardian: "Um responsável precisa aprovar o envio desta versão para a caixa.",
     receiptTitle: "Comprovante de permissão",
     receiptTo: "Enviado para",
-    receiptToValue: "Caixa de demonstração (protótipo, não o Baptize)",
+    receiptToValue: "Caixa de demonstração (não o Baptize)",
     receiptScope: "Permissão",
     receiptScopeValue: "Só análise. Sem publicação.",
     receiptVersion: "Versão",
@@ -332,7 +330,7 @@ const ptBR: Messages = {
     "empty-recording": "Essa gravação está vazia. Tente de novo.",
   },
   privacyPage: {
-    title: "Privacidade neste protótipo",
+    title: "Privacidade",
     updated: "Descreve a versão de teste do hackathon em 24 de outubro de 2026.",
     intro: "Esta é uma versão de teste para um hackathon. Use somente histórias inventadas. Não é um serviço pronto e isto não é uma política de privacidade jurídica.",
     sections: [
@@ -369,7 +367,7 @@ const ptBR: Messages = {
       {
         title: "Menores de idade",
         items: [
-          "Se você tem menos de 18 anos ou não tem certeza, um responsável precisa aprovar antes de você escrever, gravar ou compartilhar. Neste protótipo essa aprovação é só simulada; não é uma verificação.",
+          "Se você tem menos de 18 anos ou não tem certeza, um responsável precisa aprovar antes de você escrever, gravar ou compartilhar. Aqui essa aprovação é só simulada; não é uma verificação.",
         ],
       },
       {
@@ -384,7 +382,7 @@ const ptBR: Messages = {
   },
   inbox: {
     title: "Caixa de demonstração",
-    banner: "Caixa de protótipo com histórias fictícias. Não está ligada ao Baptize. Fica na memória e é esvaziada quando o servidor reinicia.",
+    banner: "Caixa de demonstração. Não está ligada ao Baptize. Fica na memória e é esvaziada quando o servidor reinicia.",
     passcode: "Código da caixa",
     unlock: "Abrir caixa",
     badPasscode: "Esse código não confere.",

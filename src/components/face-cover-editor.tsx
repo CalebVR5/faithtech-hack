@@ -28,9 +28,30 @@ type Scan =
 
 type FaceDetectorInstance = Awaited<ReturnType<(typeof import("@mediapipe/tasks-vision"))["FaceDetector"]["createFromOptions"]>>;
 
+/**
+ * MediaPipe's runtime prints routine status lines ("INFO: Created TensorFlow
+ * Lite XNNPACK delegate for CPU.") through console.error, which the Next.js dev
+ * overlay reports as an issue. Only those library lines are dropped; every
+ * other error still reaches the console.
+ */
+let mediaPipeLogsQuieted = false;
+function quietMediaPipeLogs() {
+  if (mediaPipeLogsQuieted) return;
+  mediaPipeLogsQuieted = true;
+  const isRoutine = (args: unknown[]) =>
+    typeof args[0] === "string" && /^(INFO: |[IW]\d{4} )|XNNPACK delegate/.test(args[0]);
+  for (const level of ["error", "warn", "info"] as const) {
+    const original = console[level].bind(console);
+    console[level] = (...args: unknown[]) => {
+      if (!isRoutine(args)) original(...args);
+    };
+  }
+}
+
 /** One detector per page: the 13 MB runtime loads once, however many times the editor mounts. */
 let detectorPromise: Promise<FaceDetectorInstance> | null = null;
 function getDetector(): Promise<FaceDetectorInstance> {
+  quietMediaPipeLogs();
   detectorPromise ??= (async () => {
     const { FaceDetector, FilesetResolver } = await import("@mediapipe/tasks-vision");
     const fileset = await FilesetResolver.forVisionTasks("/api/vision");

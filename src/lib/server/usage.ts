@@ -20,7 +20,7 @@ const used = (g.__usage ??= { sttSeconds: 0, translateChars: 0, ttsChars: 0 });
 /** Reserves usage before a provider call; throws if the cap would be exceeded. */
 export function reserve(meter: Meter, amount: number): void {
   if (used[meter] + amount > LIMITS[meter]) {
-    throw new ProviderError("The prototype's usage cap has been reached. Restart the server or raise the cap.", 429);
+    throw new ProviderError("The app's usage cap has been reached. Restart the server or raise the cap.", 429);
   }
   used[meter] += amount;
 }

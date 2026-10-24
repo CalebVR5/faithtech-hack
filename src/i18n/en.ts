@@ -10,7 +10,6 @@ const en = {
     startOver: "Start over",
     tryAgain: "Try again",
     working: "Working…",
-    prototypeTitle: "Prototype — use a made-up story",
     privacy: "Privacy",
     interfaceLanguage: "App language",
     deleteStory: "Delete my story",
@@ -24,7 +23,6 @@ const en = {
     newStoryDelete: "Delete it and start new",
     newStoryKeep: "Keep it and start new",
     newStoryCancel: "Stay here",
-    notConnected: "Fictional stories only. Not connected to baptize.org.",
     errorFallback: "Something went wrong. Your draft is safe; please try again.",
   },
   welcome: {
@@ -52,7 +50,7 @@ const en = {
     title: "A guardian needs to be part of this",
     body: "Because you're under 18, or not sure, a parent or guardian needs to approve before a story is written, recorded, saved or shared here.",
     simTitle: "Test scenario: simulate a guardian",
-    simBody: "This prototype can't verify who a guardian is. These buttons only show that everything stays blocked until approval. A real service needs a proper guardian process.",
+    simBody: "This app can't verify who a guardian is. These buttons simulate a guardian's decision, so you can see that everything stays blocked until approval.",
     approve: "Simulate: guardian approves",
     decline: "Simulate: guardian declines",
     declinedTitle: "A guardian declined",
@@ -77,7 +75,7 @@ const en = {
     upload: "Upload a recording",
     uploadHint: "An audio file up to 60 seconds and 10 MB.",
     sample: "Use a sample story",
-    sampleHint: "Made-up stories for trying the prototype.",
+    sampleHint: "Made-up stories to try it with.",
     sampleScenario: "Tests:",
     film: "Film yourself",
     filmHint: (seconds: number) => `One video, up to ${seconds} seconds. Your face, voice and surroundings will be in it.`,
@@ -137,7 +135,7 @@ const en = {
     mockNote: "This demo is in mock mode: the mock service runs on this computer and nothing goes to Google. Results are labeled fixtures.",
     keepNote: "The app keeps a converted copy of your recording on its server for up to 1 hour so it can be used in a video. Deleting your story removes it sooner.",
     keepVideoNote: "The app keeps your video on its server for up to 1 hour so it can make your story video. Only the sound is sent to the speech service. Deleting your story removes the video sooner.",
-    retention: "The service uses it to return a result. Its own retention terms apply and haven't been reviewed for this prototype.",
+    retention: "The service uses it to return a result. Its own retention terms apply and haven't been reviewed for this app.",
     alternative: "Prefer not to? You can type instead, choose no voice, or keep your story's language.",
     agree: "Allow",
     decline: "Not now",
@@ -157,7 +155,7 @@ const en = {
   review: {
     title: "Your story",
     lead: "Everything you make comes from these words. Change anything you like.",
-    sample: "Sample story (fictional)",
+    sample: "Sample story",
     flagsTitle: "Details you may want to check",
     flagsHint: "Names, places, dates and family members can identify you or others. This list is only a helper and can miss things.",
     flagKinds: {
@@ -288,14 +286,14 @@ const en = {
     findFile: "Can't find the file?",
     findFileBody: "On iPhone, saved files often go to the Files app (Downloads); use Share → Save Image or Save Video to put them in Photos. On Android, look in the Files or Downloads app, or your Gallery.",
     relational: "Who would you like to share this moment with?",
-    inboxTitle: "Demo inbox (prototype only)",
+    inboxTitle: "Demo inbox",
     inboxBody: "Separately, you can send this approved version to a demo inbox that stands in for Baptize's review. It is not connected to Baptize. Review only: this doesn't give permission to publish anything.",
     inboxCheck: "Send this version to the demo inbox for review",
     inboxSend: "Send to demo inbox",
     inboxNeedsGuardian: "A guardian needs to approve sending this version to the inbox.",
     receiptTitle: "Permission receipt",
     receiptTo: "Sent to",
-    receiptToValue: "Demo inbox (prototype, not Baptize)",
+    receiptToValue: "Demo inbox (not Baptize)",
     receiptScope: "Permission",
     receiptScopeValue: "Review only. Not publication.",
     receiptVersion: "Version",
@@ -330,7 +328,7 @@ const en = {
     "empty-recording": "That recording is empty. Please try again.",
   } as Record<string, string>,
   privacyPage: {
-    title: "Privacy in this prototype",
+    title: "Privacy",
     updated: "Describes the hackathon test build as of October 24, 2026.",
     intro: "This is a test build for a hackathon. Please use made-up stories only. It is not a finished service and this is not a legal privacy policy.",
     sections: [
@@ -367,7 +365,7 @@ const en = {
       {
         title: "Young people",
         items: [
-          "If you're under 18 or not sure, a guardian needs to approve before you write, record or share. In this prototype that approval is only simulated; it is not verification.",
+          "If you're under 18 or not sure, a guardian needs to approve before you write, record or share. Here that approval is only simulated; it is not verification.",
         ],
       },
       {
@@ -382,7 +380,7 @@ const en = {
   },
   inbox: {
     title: "Demo inbox",
-    banner: "Prototype inbox with fictional stories. Not connected to Baptize. Held in memory and cleared when the server restarts.",
+    banner: "Demo inbox. Not connected to Baptize. Held in memory and cleared when the server restarts.",
     passcode: "Inbox passcode",
     unlock: "Open inbox",
     badPasscode: "That passcode didn't match.",

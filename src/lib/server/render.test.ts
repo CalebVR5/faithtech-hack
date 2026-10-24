@@ -27,7 +27,7 @@ describe("renderers", { timeout: 60_000 }, () => {
       text: es.text.slice(0, 200),
       storyLabel: `${OUTPUT_LABELS["es-419"].storyLabel} · ${OUTPUT_LABELS["es-419"].excerpt}`,
       displayName: "Carla",
-      notes: [OUTPUT_LABELS["es-419"].machineTranslated, OUTPUT_LABELS["es-419"].prototype],
+      notes: [OUTPUT_LABELS["es-419"].machineTranslated],
     });
     expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
     await keep("card.png", png);
@@ -41,7 +41,7 @@ describe("renderers", { timeout: 60_000 }, () => {
       captions: buildSlides(words, "es-419", durationMs),
       storyLabel: OUTPUT_LABELS["es-419"].storyLabel,
       displayName: "Carla",
-      notes: [OUTPUT_LABELS["es-419"].synthetic, OUTPUT_LABELS["es-419"].prototype],
+      notes: [OUTPUT_LABELS["es-419"].synthetic],
     });
     expect(mp4.subarray(4, 8).toString("ascii")).toBe("ftyp");
     await keep("video.mp4", mp4);
@@ -66,7 +66,7 @@ describe("renderers", { timeout: 60_000 }, () => {
       captions: buildSlides(words, "es-419", 3000),
       storyLabel: OUTPUT_LABELS["es-419"].storyLabel,
       displayName: "Carla",
-      notes: [OUTPUT_LABELS["es-419"].prototype],
+      notes: [],
     });
     expect(mp4.subarray(4, 8).toString("ascii")).toBe("ftyp");
     expect(await probeMedia(mp4)).toEqual({ hasVideo: true, hasAudio: true });
