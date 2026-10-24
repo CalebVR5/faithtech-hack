@@ -1,0 +1,10 @@
+# Consistent line endings for macOS and Windows teammates.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.wav binary
+*.mp3 binary
+*.mp4 binary
+*.webm binary
+*.ttf binary
+*.woff2 binary
