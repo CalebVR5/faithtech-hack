@@ -17,16 +17,22 @@ export async function POST(request: Request) {
     const key = typeof body.idempotencyKey === "string" ? body.idempotencyKey.slice(0, 64) : "";
     if (!key) return jsonError(400, "Missing idempotency key.");
 
-    const existing = [...db.inbox.values()].find(
-      (e) => e.submission.idempotencyKey === key && e.submission.storyId === story.id,
-    );
-    if (existing) return json(assetState(sessionId, story, asset));
-
     const decision = authorize("submit-mock-inbox", { sessionId, story, asset, consents: consentsFor(story.id) });
     if (!decision.ok) return jsonError(403, decision.reason, decision.code);
 
     const file = asset.fileRef ? await getFile(sessionId, asset.fileRef) : null;
     if (!file) return jsonError(410, "This version has expired. Please make it again.", "preview-expired");
+
+    // Check for an earlier submission only after the last await, so the check
+    // and the insert below run together: concurrent requests can't both pass.
+    // A pending submission of this exact version counts too, whatever its key.
+    const existing = [...db.inbox.values()].find(
+      (e) =>
+        e.submission.storyId === story.id &&
+        (e.submission.idempotencyKey === key ||
+          (e.submission.assetId === asset.id && e.submission.assetVersion === asset.version && e.submission.state === "pending")),
+    );
+    if (existing) return json(assetState(sessionId, story, asset));
 
     const submission: MockSubmission = {
       id: newId(),

@@ -10,7 +10,7 @@ import { deleteFile } from "./temp-store";
 // one process.
 
 /** Stories older than the session cookie are dropped. */
-const STORY_TTL_MS = 12 * 60 * 60 * 1000;
+export const STORY_TTL_MS = 12 * 60 * 60 * 1000;
 
 export interface InboxEntry {
   submission: MockSubmission;

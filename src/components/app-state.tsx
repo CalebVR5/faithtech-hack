@@ -4,11 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { MESSAGES, type Messages } from "@/i18n";
 import { ApiError, api, type AssetState, type StoryView } from "@/lib/client/api";
 import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
+import { needsGuardian } from "@/lib/domain/policy";
 import type { NarrationMode, OutputKind, Segment, Transcript } from "@/lib/domain/types";
 
 // Unsaved drafts live in memory only (plan section 6): nothing here is written
 // to browser storage. The provider sits in the root layout so a visit to the
-// privacy page doesn't lose the draft.
+// privacy page doesn't lose the draft. After a reload, the welcome screen finds
+// this session's earlier stories on the server so they can be continued or deleted.
 
 export type Step =
   | "welcome"
@@ -97,6 +99,7 @@ interface AppContextValue {
   go: (step: Step) => void;
   back: () => void;
   reset: (step?: Step) => void;
+  resume: (story: StoryView) => void;
   /** Saves story fields on the server and keeps the returned version. */
   saveStory: (patch: Record<string, unknown>) => Promise<StoryView>;
   errorText: (err: unknown) => string;
@@ -141,6 +144,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /** Picks up a story this session started earlier, at the first step it still needs. */
+  const resume = useCallback((story: StoryView) => {
+    setUiState(story.interfaceLanguage);
+    const step: Step =
+      needsGuardian(story) && story.guardianCapture !== "approved-in-simulation"
+        ? "guardian"
+        : story.reviewedText.trim()
+          ? "review"
+          : "capture";
+    setFlow((s) => {
+      if (s.pending) URL.revokeObjectURL(s.pending.audioUrl);
+      return { ...INITIAL, story, step, history: ["welcome"] };
+    });
+  }, []);
+
   const setUi = useCallback(
     (id: LanguageId) => {
       setUiState(id);
@@ -170,8 +188,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ ui, setUi, t, provider, flow, update, go, back, reset, saveStory, errorText }),
-    [ui, setUi, t, provider, flow, update, go, back, reset, saveStory, errorText],
+    () => ({ ui, setUi, t, provider, flow, update, go, back, reset, resume, saveStory, errorText }),
+    [ui, setUi, t, provider, flow, update, go, back, reset, resume, saveStory, errorText],
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

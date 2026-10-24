@@ -5,19 +5,22 @@
 
 import type { Segment } from "@/lib/domain/types";
 
-export const LAYOUT_VERSION = "v1";
+export const LAYOUT_VERSION = "v2-riverside";
 
 export const CARD_SIZE = { width: 1080, height: 1350 } as const;
 export const VIDEO_SIZE = { width: 720, height: 1280 } as const;
 
+/** Riverside, matching the app's tokens (src/app/globals.css). */
 export const PALETTE = {
-  background: "#1F2B36",
-  text: "#F5F0E8",
-  accent: "#D9B98C",
-  muted: "#A9B4BF",
+  background: "#0E4A55",
+  text: "#FFFFFF",
+  accent: "#E9B949",
+  // 7.0:1 on the background.
+  muted: "#BFE0E3",
 } as const;
 
-const SERIF = "Libre Baskerville";
+/** The storyteller's words. Labels, names and captions use the sans. */
+const SERIF = "Literata";
 const SANS = "Atkinson Hyperlegible";
 
 /** "#RRGGBB" → ASS "&H00BBGGRR". */
@@ -121,6 +124,37 @@ function at(x: number, y: number, text: string): string {
   return `{\\pos(${x},${y})}${escapeAssText(text)}`;
 }
 
+/**
+ * The Riverside waterline as an ASS vector drawing: a wave-shaped ribbon
+ * `width` long, built from cubic half-waves so it renders identically in libass
+ * on every OS. Coordinates are relative to the event's \\pos.
+ */
+export function waveDrawing(width: number, wavelength = 48, amplitude = 6, thickness = 4): string {
+  const halves = Math.max(1, Math.round(width / (wavelength / 2)));
+  const h = width / halves;
+  // A cubic with both controls at 4A/3 peaks at A.
+  const k = (amplitude * 4) / 3;
+  const r = (n: number) => Math.round(n * 10) / 10;
+  const top: string[] = [];
+  const bottom: string[] = [];
+  for (let i = 0; i < halves; i++) {
+    const x0 = i * h;
+    const d = i % 2 === 0 ? -k : k;
+    top.push(`b ${r(x0 + h / 3)} ${r(d)} ${r(x0 + (2 * h) / 3)} ${r(d)} ${r(x0 + h)} 0`);
+  }
+  for (let i = halves - 1; i >= 0; i--) {
+    const x0 = i * h;
+    const d = i % 2 === 0 ? -k : k;
+    bottom.push(`b ${r(x0 + (2 * h) / 3)} ${r(d + thickness)} ${r(x0 + h / 3)} ${r(d + thickness)} ${r(x0)} ${thickness}`);
+  }
+  return `m 0 0 ${top.join(" ")} l ${r(width)} ${thickness} ${bottom.join(" ")}`;
+}
+
+/** Places a waterline drawing with its left end at `x,y`. */
+function waterline(x: number, y: number, width: number, color: string): string {
+  return `{\\an7\\pos(${x},${y})\\bord0\\shad0\\1c${assColor(color)}&\\p1}${waveDrawing(width)}{\\p0}`;
+}
+
 export interface CardLayoutInput {
   text: string;
   storyLabel?: string;
@@ -136,13 +170,16 @@ export function cardFontSize(chars: number): number {
   return 38;
 }
 
+/** Where the card's waterline sits; the quote rests just above it. */
+const WATERLINE_Y = 1072;
+
 export function cardAss(input: CardLayoutInput): string {
   const { width, height } = CARD_SIZE;
   const left = 100;
   const styles: Style[] = [
     { name: "Label", font: SANS, size: 30, color: PALETTE.accent, bold: true, spacing: 3, align: 7, marginL: left, marginR: left, marginV: 0 },
-    { name: "Mark", font: SERIF, size: 200, color: PALETTE.accent, align: 7, marginL: left, marginR: left, marginV: 0 },
-    { name: "Quote", font: SERIF, size: cardFontSize(input.text.length), color: PALETTE.text, align: 7, marginL: left, marginR: left, marginV: 300 },
+    // The words rest on the waterline: bottom-anchored just above it, so open space reads as sky, not a gap.
+    { name: "Quote", font: SERIF, size: cardFontSize(input.text.length), color: PALETTE.text, align: 1, marginL: left, marginR: left, marginV: height - WATERLINE_Y + 40 },
     { name: "Name", font: SANS, size: 38, color: PALETTE.text, bold: true, align: 1, marginL: left, marginR: left, marginV: 0 },
     { name: "Note", font: SANS, size: 26, color: PALETTE.muted, align: 1, marginL: left, marginR: left, marginV: 0 },
   ];
@@ -150,8 +187,9 @@ export function cardAss(input: CardLayoutInput): string {
   const events: Event[] = [];
   let layer = 0;
   if (input.storyLabel) events.push({ ...forever, layer: layer++, style: "Label", text: at(left, 110, input.storyLabel) });
-  events.push({ ...forever, layer: layer++, style: "Mark", text: at(left - 8, 150, "“") });
-  events.push({ ...forever, layer: layer++, style: "Quote", text: escapeAssText(input.text) });
+  // The opening mark is decoration in gold; \\r returns to the plain style before the author's words.
+  events.push({ ...forever, layer: layer++, style: "Quote", text: `{\\1c${assColor(PALETTE.accent)}&}“{\\r}${escapeAssText(input.text)}` });
+  events.push({ ...forever, layer: layer++, style: "Label", text: waterline(left, WATERLINE_Y, width - left * 2, PALETTE.accent) });
 
   // Bottom block, stacked upward from the footer.
   let y = height - 90;
@@ -195,6 +233,7 @@ export function videoAss(input: VideoLayoutInput): string {
     y += 32;
   }
   if (input.displayName) events.push({ ...whole, layer: layer++, style: "Name", text: at(cx, 900, `— ${input.displayName}`) });
+  events.push({ ...whole, layer: layer++, style: "Label", text: waterline(60, 1010, width - 120, PALETTE.accent) });
 
   const captionLayer = layer;
   for (const c of input.captions) {

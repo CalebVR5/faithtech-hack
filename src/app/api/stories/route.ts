@@ -2,10 +2,30 @@ import { isLanguageId } from "@/lib/domain/languages";
 import { NO_PREFERENCES } from "@/lib/domain/privacy-guide";
 import type { AgeGate, Story } from "@/lib/domain/types";
 import { handleRouteError, json, jsonError } from "@/lib/server/http";
-import { getOrCreateSessionId } from "@/lib/server/session";
-import { db, newId, storyView, sweepStories } from "@/lib/server/store";
+import { getOrCreateSessionId, getSessionId } from "@/lib/server/session";
+import { db, newId, STORY_TTL_MS, storyView, sweepStories } from "@/lib/server/store";
 
 const AGE_ANSWERS: AgeGate[] = ["adult", "under-18", "not-sure"];
+
+/**
+ * This session's stories, newest first. A reload or "Start a new story" drops
+ * the browser's in-memory draft, so this lets the person find an earlier story
+ * again to continue or delete it, without keeping anything in browser storage.
+ */
+export async function GET() {
+  try {
+    const sessionId = await getSessionId();
+    if (!sessionId) return json({ stories: [] });
+    sweepStories();
+    const stories = [...db.stories.values()]
+      .filter((s) => s.sessionId === sessionId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map(storyView);
+    return json({ stories, expiresAfterMs: STORY_TTL_MS });
+  } catch (err) {
+    return handleRouteError(err);
+  }
+}
 
 // Starts a story once the age question is answered (plan section 3). No name,
 // contact details or date of birth: just the answer and language choices.

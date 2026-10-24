@@ -35,7 +35,7 @@ export function StepShell({
         </Button>
       )}
       <div className="flex flex-col gap-3">
-        <h1 id="step-title" ref={heading} tabIndex={-1} className="font-heading text-3xl leading-tight outline-none">
+        <h1 id="step-title" ref={heading} tabIndex={-1} className="font-heading text-3xl leading-tight font-bold tracking-tight outline-none">
           {title}
         </h1>
         {lead && <div className="text-lg text-muted-foreground">{lead}</div>}
@@ -68,8 +68,8 @@ export function OptionButton({
       aria-pressed={selected}
       className={cn(
         "flex w-full items-start gap-3 rounded-xl border bg-card p-4 text-left transition-colors outline-none",
-        "hover:border-primary/60 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50",
-        selected ? "border-primary ring-2 ring-primary/30" : "border-border",
+        "hover:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+        selected ? "border-primary bg-secondary/60 ring-2 ring-primary/25" : "border-border",
         className,
       )}
       {...props}
@@ -87,3 +87,7 @@ export function OptionButton({
 }
 
 export const bigButton = "h-11 px-5 text-base";
+
+/** A tappable row holding a checkbox and its label; matches a selected OptionButton when checked. */
+export const checkRow =
+  "flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/60 has-data-checked:border-primary has-data-checked:bg-secondary/60";

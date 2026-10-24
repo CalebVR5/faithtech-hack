@@ -15,9 +15,10 @@ const sans = localFont({
   display: "swap",
 });
 
-const serif = localFont({
-  src: [{ path: "../../assets/fonts/LibreBaskerville.ttf", style: "normal" }],
-  variable: "--font-baskerville",
+// Reserved for the storyteller's own words.
+const story = localFont({
+  src: [{ path: "../../assets/fonts/Literata-Regular.ttf", weight: "400", style: "normal" }],
+  variable: "--font-literata",
   display: "swap",
 });
 
@@ -31,12 +32,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1F2B36",
+  themeColor: "#0E4A55",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable} h-full antialiased`}>
+    <html lang="en" className={`${sans.variable} ${story.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <AppProvider>
           <SiteHeader />

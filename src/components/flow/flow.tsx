@@ -8,6 +8,7 @@ import { ShareStep } from "@/components/flow/step-share";
 import { AgeStep, GuardianStep, PrivacyStep, WelcomeStep } from "@/components/flow/steps-start";
 import { bigButton, StepShell } from "@/components/step-shell";
 import { Button } from "@/components/ui/button";
+import { Waterline } from "@/components/waterline";
 
 /** Coarse progress through the four stages shown on the welcome screen. */
 const STAGE: Partial<Record<Step, number>> = {
@@ -35,17 +36,7 @@ export function Flow() {
 
   return (
     <>
-      {stage !== undefined && (
-        <ol className="mb-6 grid grid-cols-4 gap-2" aria-label={t.welcome.stepsTitle}>
-          {t.welcome.steps.map((label, i) => (
-            <li key={label} aria-current={i === stage ? "step" : undefined} className="flex flex-col gap-1">
-              <span className={`h-1.5 rounded-full ${i <= stage ? "bg-primary" : "bg-muted"}`} aria-hidden />
-              <span className={`text-xs ${i === stage ? "font-semibold text-foreground" : "text-muted-foreground"} hidden sm:block`}>{label}</span>
-              <span className="sr-only">{label}</span>
-            </li>
-          ))}
-        </ol>
-      )}
+      {stage !== undefined && <Waterline stage={stage} labels={t.welcome.steps} title={t.welcome.stepsTitle} />}
       {flow.step === "welcome" && <WelcomeStep />}
       {flow.step === "age" && <AgeStep />}
       {flow.step === "guardian" && <GuardianStep />}

@@ -21,29 +21,29 @@ async function keep(name: string, data: Buffer) {
 }
 
 describe("renderers", { timeout: 60_000 }, () => {
-  const fr = STORY_FIXTURES.find((f) => f.id === "fixture-fr-camille")!;
+  const es = STORY_FIXTURES.find((f) => f.id === "sample-c-voice-note")!;
 
   it("renders a card PNG with accented text", async () => {
     const png = await renderCardPng({
-      text: fr.text.slice(0, 200),
-      storyLabel: `${OUTPUT_LABELS.fr.storyLabel} · ${OUTPUT_LABELS.fr.excerpt}`,
-      displayName: "Camille",
-      notes: [OUTPUT_LABELS.fr.machineTranslated, OUTPUT_LABELS.fr.prototype],
+      text: es.text.slice(0, 200),
+      storyLabel: `${OUTPUT_LABELS["es-419"].storyLabel} · ${OUTPUT_LABELS["es-419"].excerpt}`,
+      displayName: "Carla",
+      notes: [OUTPUT_LABELS["es-419"].machineTranslated, OUTPUT_LABELS["es-419"].prototype],
     });
     expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
     await keep("card.png", png);
   });
 
   it("renders a narrated MP4 with captions timed to the audio", async () => {
-    const sentences = splitSentences(fr.text, "fr-CA");
+    const sentences = splitSentences(es.text, "es-419");
     const durationMs = 6000;
     const mp4 = await renderNarratedMp4({
       audio: toneWav(durationMs, 24_000),
       durationMs,
       captions: chunkSegments(proportionalSegments(sentences, durationMs)),
-      storyLabel: OUTPUT_LABELS.fr.storyLabel,
-      displayName: "Camille",
-      notes: [OUTPUT_LABELS.fr.synthetic, OUTPUT_LABELS.fr.prototype],
+      storyLabel: OUTPUT_LABELS["es-419"].storyLabel,
+      displayName: "Carla",
+      notes: [OUTPUT_LABELS["es-419"].synthetic, OUTPUT_LABELS["es-419"].prototype],
     });
     expect(mp4.subarray(4, 8).toString("ascii")).toBe("ftyp");
     await keep("video.mp4", mp4);

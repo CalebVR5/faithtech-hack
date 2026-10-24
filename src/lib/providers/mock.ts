@@ -2,7 +2,7 @@
 // labeled so nobody mistakes them for real transcription or translation.
 
 import { fixtureFor } from "@/fixtures/stories";
-import { LANGUAGES } from "@/lib/domain/languages";
+import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
 import { MAX_RECORDING_SECONDS } from "@/lib/domain/limits";
 import { proportionalSegments, splitSentences } from "@/lib/domain/text";
 import type { Transcript, TranscriptWord } from "@/lib/domain/types";
@@ -12,11 +12,20 @@ import type { LanguageProvider, SynthesizeInput, TranscribeInput, TranslateInput
 const MOCK_SAMPLE_RATE = 24_000;
 const MS_PER_CHAR = 65;
 
+// Returned for languages with no sample story, so a mock transcript is never
+// in the wrong language. Worded as an obvious placeholder to edit.
+const PLACEHOLDER_TRANSCRIPTS: Record<LanguageId, string> = {
+  en: "This is a mock transcript for demo mode. Edit these words to tell your story.",
+  fr: "Ceci est une transcription fictive du mode démo. Modifiez ces mots pour raconter votre histoire.",
+  "es-419": "Esta es una transcripción simulada del modo demo. Edita estas palabras para contar tu historia.",
+  "pt-BR": "Esta é uma transcrição simulada do modo demo. Edite estas palavras para contar sua história.",
+};
+
 export const mockProvider: LanguageProvider = {
   name: "mock",
 
   async transcribe({ durationMs, language, sttLocale, scriptText }: TranscribeInput): Promise<Transcript> {
-    const text = scriptText?.trim() || fixtureFor(language, sttLocale).text;
+    const text = scriptText?.trim() || fixtureFor(language, sttLocale)?.text || PLACEHOLDER_TRANSCRIPTS[language];
     const locale = LANGUAGES[language].uiLocale;
     const sentences = splitSentences(text, locale);
     const span = Math.max(durationMs, 1000);

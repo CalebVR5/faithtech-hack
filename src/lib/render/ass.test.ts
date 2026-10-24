@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assColor, assTime, cardAss, cardFontSize, escapeAssText, videoAss } from "./ass";
+import { assColor, assTime, cardAss, cardFontSize, escapeAssText, videoAss, waveDrawing } from "./ass";
 
 describe("ASS helpers", () => {
   it("treats story text as data, not markup", () => {
@@ -42,5 +42,13 @@ describe("ASS helpers", () => {
     });
     expect(doc).toContain("0:00:00.00,0:00:01.50,Caption,,0,0,0,,First.");
     expect(doc).toContain("0:00:01.50,0:00:03.00,Caption,,0,0,0,,Second.");
+  });
+
+  it("draws the waterline as one closed shape spanning its width", () => {
+    const path = waveDrawing(880);
+    expect(path.startsWith("m 0 0 b ")).toBe(true);
+    expect(path).not.toMatch(/NaN|Infinity/);
+    expect(path).toContain("l 880 4");
+    expect(path.endsWith(" 0 4")).toBe(true);
   });
 });

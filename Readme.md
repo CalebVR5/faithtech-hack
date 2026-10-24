@@ -89,7 +89,7 @@ The storyteller's flow (plan section 3), end to end:
 | Session-owned, expiring temp media store | [`src/lib/server/temp-store.ts`](src/lib/server/temp-store.ts) |
 | UI flow, recorder, consent panel | [`src/components/`](src/components) |
 | Interface strings: en, fr (Canada), es-419, pt-BR. Drafts, labeled in the UI as unreviewed | [`src/i18n/`](src/i18n) |
-| Fabricated fixtures (en, fr-CA, es-MX, es-PE, pt-BR, an uncertain story, and a minor) | [`src/fixtures/stories.ts`](src/fixtures/stories.ts) |
+| The hackathon's three made-up sample testimonies, verbatim: A long and rambling (English), B very short (English), C Spanish voice note. No French or Portuguese sample yet; mock transcription uses a labeled placeholder there | [`src/fixtures/stories.ts`](src/fixtures/stories.ts) |
 
 ### API
 
@@ -97,7 +97,7 @@ All routes are session-owned (anonymous `sid` cookie). Another session gets `404
 
 | Route | Purpose |
 |---|---|
-| `POST /api/stories` · `GET`/`PATCH`/`DELETE /api/stories/:id` | Create after the age question; update text, take, name, language or privacy (content edits bump the version); delete everything |
+| `GET`/`POST /api/stories` · `GET`/`PATCH`/`DELETE /api/stories/:id` | List this session's stories (so a reload or "Start a new story" can continue or delete them); create after the age question; update text, take, name, language or privacy (content edits bump the version); delete everything |
 | `POST /api/stories/:id/guardian` | **Test scenario:** simulated guardian decision that unlocks capture |
 | `POST /api/transcribe` | multipart `audio`, `storyId`, `cloudProcessingAccepted`, optional `sttLocale`, `keep` (keep a converted copy ≤ 1 h for narration), `scriptText` (mock only) |
 | `POST /api/render` | `storyId`, `kind` (`card`/`narrated-video`), `narration`, `outputLanguage`, `span`, `showName`, `showStoryLabel`, `cloud` consents. Returns the asset and its permission state |
@@ -129,4 +129,4 @@ All routes are session-owned (anonymous `sid` cookie). Another session gets `404
 
 ## Credits
 
-Next.js, React, shadcn/ui (Base UI), Tailwind CSS, lucide icons, FFmpeg via [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) with libass, Vitest. Fonts (SIL Open Font License, in [`assets/fonts`](assets/fonts) with licenses in [`assets/font-licenses`](assets/font-licenses)): [Atkinson Hyperlegible](https://brailleinstitute.org/freefont) by the Braille Institute, and [Libre Baskerville](https://github.com/impallari/Libre-Baskerville) by Impallari Type. Story fixtures are fabricated for this project.
+Next.js, React, shadcn/ui (Base UI), Tailwind CSS, lucide icons, FFmpeg via [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) with libass, Vitest. Fonts (SIL Open Font License, in [`assets/fonts`](assets/fonts) with licenses in [`assets/font-licenses`](assets/font-licenses)): [Atkinson Hyperlegible](https://brailleinstitute.org/freefont) by the Braille Institute, and [Literata](https://github.com/googlefonts/literata) by TypeTogether for Google. Story fixtures are fabricated for this project.

@@ -6,8 +6,7 @@ import { wavDurationMs } from "@/lib/media/wav";
 import { mockProvider } from "./mock";
 
 describe("mock provider", () => {
-  it.each(LANGUAGE_IDS)("synthesizes %s with captions spanning the audio", async (language) => {
-    const text = STORY_FIXTURES.find((f) => f.language === language)!.text;
+  it.each(STORY_FIXTURES)("synthesizes sample $id with captions spanning the audio", async ({ text, language }) => {
     const out = await mockProvider.synthesize({ text, language });
     expect(wavDurationMs(out.audio)).toBe(out.durationMs);
     expect(out.segments.length).toBeGreaterThan(1);
@@ -22,16 +21,25 @@ describe("mock provider", () => {
     expect(out).toEqual(["[mock pt] Hello."]);
   });
 
-  it("returns the regional fixture for the requested Spanish locale", async () => {
-    const peru = await mockProvider.transcribe({
+  const transcribe = (language: (typeof LANGUAGE_IDS)[number]) =>
+    mockProvider.transcribe({
       wav: Buffer.alloc(0),
       sampleRate: 16000,
       durationMs: 20000,
-      language: "es-419",
-      sttLocale: "es-PE",
+      language,
+      sttLocale: LANGUAGES[language].sttLocale,
     });
-    expect(peru.text).toContain("universidad");
-    expect(peru.words.some((w) => w.uncertain)).toBe(true);
+
+  it("transcribes to the sample story in that language", async () => {
+    const es = await transcribe("es-419");
+    expect(es.text).toContain("mi nombre es Carla");
+    expect(es.words.some((w) => w.uncertain)).toBe(true);
+  });
+
+  it.each(["fr", "pt-BR"] as const)("never returns another language's sample for %s", async (language) => {
+    const out = await transcribe(language);
+    expect(STORY_FIXTURES.some((f) => f.text === out.text)).toBe(false);
+    expect(out.text.length).toBeGreaterThan(0);
   });
 });
 

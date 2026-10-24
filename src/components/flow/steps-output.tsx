@@ -9,7 +9,7 @@ import { GuardianAssetPanel } from "@/components/flow/guardian-asset";
 import { ErrorNote } from "@/components/flow/steps-start";
 import { useTranscribe } from "@/components/flow/steps-capture";
 import { RecorderPanel } from "@/components/recorder";
-import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
+import { bigButton, checkRow, OptionButton, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -131,7 +131,7 @@ export function ScriptStep() {
         </Button>
       </div>
       {/* The approved words only: no instructions inside the script that could be read aloud as testimony. */}
-      <div lang={locale} className={`flex max-h-[50vh] flex-col gap-4 overflow-y-auto rounded-xl border bg-card p-5 font-heading leading-relaxed ${sizes[size]}`}>
+      <div lang={locale} className={`flex max-h-[50vh] flex-col gap-4 overflow-y-auto rounded-xl border bg-card p-5 font-story leading-relaxed ${sizes[size]}`}>
         {sentences.map((s) => (
           <p key={s.start}>{s.text}</p>
         ))}
@@ -273,7 +273,7 @@ export function PreviewStep() {
         <fieldset className="flex flex-col gap-2">
           <legend className="font-semibold text-lg">{t.preview.passage}</legend>
           <p className="text-sm text-muted-foreground">{t.preview.passageHint}</p>
-          <div lang={locale} className="flex flex-col gap-1 rounded-xl border bg-card p-3 font-heading text-lg leading-relaxed">
+          <div lang={locale} className="flex flex-col gap-1 rounded-xl border bg-card p-3 font-story text-lg leading-relaxed">
             {sentences.map((s, i) => {
               const on = i >= range[0] && i <= range[1];
               return (
@@ -282,8 +282,8 @@ export function PreviewStep() {
                   type="button"
                   aria-pressed={on}
                   onClick={() => setChoice({ range: toggleSentence(range, i) })}
-                  className={`rounded-md px-2 py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
-                    on ? "bg-primary/10 text-foreground ring-1 ring-primary/40" : "text-muted-foreground"
+                  className={`rounded-md px-2 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    on ? "bg-secondary text-foreground ring-1 ring-primary/50" : "text-muted-foreground hover:bg-muted"
                   }`}
                 >
                   {s.text}
@@ -337,7 +337,7 @@ export function PreviewStep() {
       )}
 
       <div className="flex flex-col gap-3">
-        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border bg-card px-4 py-3">
+        <label className={checkRow}>
           <Checkbox checked={showName} disabled={!story.displayName} onCheckedChange={(c) => setChoice({ showName: c === true })} />
           <span>
             {t.preview.showName}
@@ -350,13 +350,19 @@ export function PreviewStep() {
             <AlertDescription>{t.preview.nameConflict}</AlertDescription>
           </Alert>
         )}
-        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border bg-card px-4 py-3">
+        <label className={checkRow}>
           <Checkbox checked={choices.showStoryLabel} onCheckedChange={(c) => setChoice({ showStoryLabel: c === true })} />
           <span>{t.preview.showLabel}</span>
         </label>
       </div>
 
-      <Button className={`${bigButton} sm:w-fit`} onClick={() => render()} disabled={busy || tooLong || Boolean(consentFor)}>
+      {/* One gold action per moment: making the preview, then approving it, then sharing. */}
+      <Button
+        variant={current ? "outline" : "default"}
+        className={`${bigButton} sm:w-fit`}
+        onClick={() => render()}
+        disabled={busy || tooLong || Boolean(consentFor)}
+      >
         {asset ? t.preview.update : t.preview.make}
       </Button>
       {busy && <p aria-live="polite">{t.preview.making}</p>}
@@ -439,7 +445,7 @@ export function PreviewStep() {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">{t.preview.keepPrivate}</p>
-            <Button className={bigButton} onClick={() => go("share")} disabled={!approved}>
+            <Button variant={approved ? "default" : "outline"} className={bigButton} onClick={() => go("share")} disabled={!approved}>
               {t.preview.toShare}
             </Button>
           </div>

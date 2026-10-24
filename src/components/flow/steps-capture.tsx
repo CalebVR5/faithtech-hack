@@ -6,7 +6,7 @@ import { useApp, type PendingTranscript } from "@/components/app-state";
 import { CloudConsent } from "@/components/cloud-consent";
 import { RecorderPanel } from "@/components/recorder";
 import { ErrorNote } from "@/components/flow/steps-start";
-import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
+import { bigButton, checkRow, OptionButton, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,8 @@ export function CaptureStep() {
   const chooseSample = async (id: string) => {
     const fixture = STORY_FIXTURES.find((f) => f.id === id)!;
     try {
-      await saveStory({ fixtureId: id, displayName: fixture.displayName });
+      // Samples carry no display name; clear one left over from an earlier sample.
+      await saveStory({ fixtureId: id, displayName: "" });
       update({ sttLocale: fixture.sttLocale });
       go("review");
     } catch (err) {
@@ -129,10 +130,10 @@ export function CaptureStep() {
               <li key={f.id}>
                 <button
                   type="button"
-                  className="w-full rounded-lg border bg-card px-4 py-3 text-left hover:border-primary/60 focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
+                  className="w-full rounded-lg border bg-card px-4 py-3 text-left hover:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring outline-none"
                   onClick={() => chooseSample(f.id)}
                 >
-                  <span className="font-medium">{f.displayName}</span>{" "}
+                  <span className="font-medium">{f.title}</span>{" "}
                   <span className="text-muted-foreground" lang={LANGUAGES[f.language].uiLocale}>
                     · {LANGUAGES[f.language].displayName}
                   </span>
@@ -431,7 +432,7 @@ export function TranscriptStep() {
         </div>
       ))}
       {uncertain.length > 0 && (
-        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border bg-card px-4 py-3">
+        <label className={checkRow}>
           <Checkbox checked={checked} onCheckedChange={(c) => setChecked(c === true)} />
           <span>{t.transcript.uncertainCheck}</span>
         </label>
@@ -489,7 +490,7 @@ export function ReviewStep() {
         <Textarea
           id="reviewed"
           lang={LANGUAGES[story.sourceLanguage].uiLocale}
-          className="min-h-48 font-heading text-lg leading-relaxed md:text-lg"
+          className="min-h-48 font-story text-lg leading-relaxed md:text-lg"
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
@@ -525,7 +526,7 @@ export function ReviewStep() {
         <input
           id="display-name"
           aria-describedby="display-name-hint"
-          className="h-11 rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="h-11 rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
           maxLength={40}
           autoComplete="off"
           value={name}

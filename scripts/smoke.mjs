@@ -73,14 +73,16 @@ console.log("adult card flow");
 let r = await a("POST", "/api/stories", { ageGate: "adult", interfaceLanguage: "en" });
 check("create story", r.status === 201, r.data);
 const story = r.data.story;
-r = await a("PATCH", `/api/stories/${story.id}`, { fixtureId: "fixture-en-jordan", displayName: "Jordan" });
+r = await a("PATCH", `/api/stories/${story.id}`, { fixtureId: "sample-a-rambling", displayName: "Sam" });
 check("load fixture bumps version", r.data.story?.version === 2, r.data);
 const text = r.data.story.reviewedText;
-const firstEnd = text.indexOf(".") + 1;
-r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span: [0, firstEnd], showName: true, outputLanguage: "en" });
+// Sample A is too long for one card, so the card uses a single sentence from it.
+const excerpt = "People were just normal and kind.";
+const span = [text.indexOf(excerpt), text.indexOf(excerpt) + excerpt.length];
+r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span, showName: true, outputLanguage: "en" });
 check("render card", r.status === 200 && r.data.asset?.status === "rendered", r.data);
 let card = r.data.asset;
-check("card is excerpt", card.spec.excerpt === true && card.spec.cardText === text.slice(0, firstEnd));
+check("card is excerpt", card.spec.excerpt === true && card.spec.cardText === excerpt);
 check("export decision denied before approval", r.data.exportDecision.ok === false && r.data.exportDecision.code === "needs-approval");
 r = await a("GET", card.previewUrl);
 check("owner preview is a PNG", r.status === 200 && r.data.subarray(1, 4).toString() === "PNG");
@@ -109,15 +111,15 @@ const submissionId = r.data.submissions[0].id;
 r = await a("PATCH", `/api/stories/${story.id}`, { reviewedText: text + " Edited." });
 r = await a("POST", "/api/export", { assetId: card.id });
 check("edit after approval → export stale", r.status === 403 && r.data.code === "asset-stale", r.data);
-r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span: [0, firstEnd], outputLanguage: "en" });
+r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span, outputLanguage: "en" });
 card = r.data.asset;
 r = await a("POST", "/api/export", { assetId: card.id });
 check("re-render needs fresh approval", r.status === 403 && r.data.code === "needs-approval", r.data);
 r = await a("POST", "/api/render", { storyId: story.id, kind: "card", outputLanguage: "en" });
 check("full story too long for card", r.status === 422 && r.data.code === "passage-too-long", r.data);
-r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span: [0, firstEnd], outputLanguage: "pt-BR" });
+r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span, outputLanguage: "pt-BR" });
 check("translation needs consent", r.status === 403 && r.data.code === "translation-consent-needed", r.data);
-r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span: [0, firstEnd], outputLanguage: "pt-BR", cloud: { translation: true } });
+r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span, outputLanguage: "pt-BR", cloud: { translation: true } });
 check("translated card labeled", r.data.asset?.spec.machineTranslated && r.data.asset.spec.cardText.startsWith("[mock pt]"), r.data);
 
 console.log("narrated video");
@@ -161,13 +163,13 @@ console.log("minor flow");
 r = await a("POST", "/api/stories", { ageGate: "under-18", interfaceLanguage: "en" });
 const minor = r.data.story;
 check("minor starts pending", minor.guardianCapture === "pending");
-r = await a("PATCH", `/api/stories/${minor.id}`, { fixtureId: "fixture-en-sam-minor" });
+r = await a("PATCH", `/api/stories/${minor.id}`, { fixtureId: "sample-b-short" });
 check("content blocked before guardian", r.status === 403 && r.data.code === "capture-blocked", r.data);
 r = await a("POST", "/api/render", { storyId: minor.id, kind: "card", outputLanguage: "en" });
 check("render blocked before guardian", r.status === 403, r.data);
 r = await a("POST", `/api/stories/${minor.id}/guardian`, { decision: "approved-in-simulation" });
 check("guardian sim approves capture", r.data.story?.guardianCapture === "approved-in-simulation", r.data);
-r = await a("PATCH", `/api/stories/${minor.id}`, { fixtureId: "fixture-en-sam-minor" });
+r = await a("PATCH", `/api/stories/${minor.id}`, { fixtureId: "sample-b-short" });
 r = await a("POST", "/api/render", { storyId: minor.id, kind: "card", outputLanguage: "en" });
 let mcard = r.data.asset;
 r = await a("POST", "/api/approve", { assetId: mcard.id, assetVersion: mcard.version, purpose: "personal-output", decision: "granted" });
@@ -208,11 +210,37 @@ check("withdraw", r.status === 204);
 r = await op("GET", item.fileUrl);
 check("withdrawn file gone", r.status === 404);
 
+console.log("concurrent submissions");
+{
+  const c = client();
+  let q = await c("POST", "/api/stories", { ageGate: "adult", interfaceLanguage: "en" });
+  const sid = q.data.story.id;
+  await c("PATCH", `/api/stories/${sid}`, { fixtureId: "sample-b-short" });
+  q = await c("POST", "/api/render", { storyId: sid, kind: "card", outputLanguage: "en" });
+  const rc = q.data.asset;
+  for (const purpose of ["personal-output", "baptize-review"]) {
+    await c("POST", "/api/approve", { assetId: rc.id, assetVersion: rc.version, purpose, decision: "granted" });
+  }
+  // Six requests at once with one key, as a double click or a retry can produce.
+  const burst = await Promise.all(Array.from({ length: 6 }, () => c("POST", "/api/mock-submissions", { assetId: rc.id, idempotencyKey: "race" })));
+  check("concurrent same-key requests → one created", burst.filter((x) => x.status === 201).length === 1, burst.map((x) => x.status));
+  q = await c("POST", "/api/mock-submissions", { assetId: rc.id, idempotencyKey: "another-key" });
+  check("new key, same version → still one submission", q.status === 200 && q.data.submissions.length === 1, q.data);
+  await c("DELETE", `/api/stories/${sid}`);
+}
+
 console.log("delete");
+r = await a("GET", "/api/stories");
+check("session lists its earlier story", r.status === 200 && r.data.stories.some((s) => s.id === story.id), r.data);
+check("story list hides session id", r.data.stories.every((s) => !("sessionId" in s)), r.data);
+r = await b("GET", "/api/stories");
+check("other session can't list it", r.status === 200 && !r.data.stories.some((s) => s.id === story.id), r.data);
 r = await a("DELETE", `/api/stories/${story.id}`);
 check("delete story", r.status === 204);
 r = await a("GET", `/api/stories/${story.id}`);
 check("story gone", r.status === 404);
+r = await a("GET", "/api/stories");
+check("deleted story leaves the list", !r.data.stories.some((s) => s.id === story.id), r.data);
 r = await a("GET", vid.previewUrl);
 check("assets gone", r.status === 404);
 

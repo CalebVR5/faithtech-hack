@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Copy, Download, Inbox, MessageCircle, Share2 } from "lucide-react";
 import { useApp } from "@/components/app-state";
-import { DeleteStory } from "@/components/flow/delete-story";
+import { DeleteStory, NewStoryButton } from "@/components/flow/delete-story";
 import { GuardianAssetPanel } from "@/components/flow/guardian-asset";
 import { ErrorNote } from "@/components/flow/steps-start";
 import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
@@ -40,7 +40,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 }
 
 export function ShareStep() {
-  const { t, flow, update, reset, errorText } = useApp();
+  const { t, flow, update, errorText } = useApp();
   const story = flow.story!;
   const state = flow.asset!;
   const asset = state.asset;
@@ -189,9 +189,10 @@ export function ShareStep() {
               {destinations.map((d) => (
                 <Button
                   key={d.id}
-                  variant={destination === d.id ? "default" : "outline"}
+                  variant="outline"
                   aria-pressed={destination === d.id}
-                  className="h-auto min-h-11 flex-col gap-1 whitespace-normal py-2 text-sm"
+                  // Selection is teal; gold stays reserved for the share action below.
+                  className="h-auto min-h-11 flex-col gap-1 whitespace-normal py-2 text-sm aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:font-bold aria-pressed:text-primary-foreground aria-pressed:hover:bg-river-deep"
                   onClick={() => {
                     setDestination(d.id);
                     setShareNote(null);
@@ -251,7 +252,7 @@ export function ShareStep() {
       )}
       {error && <ErrorNote message={error} />}
 
-      <p className="font-heading text-xl">{t.share.relational}</p>
+      <p className="font-heading text-xl font-bold">{t.share.relational}</p>
 
       <section aria-labelledby="inbox-title" className="flex flex-col gap-3 rounded-xl border border-dashed bg-card p-4">
         <h2 id="inbox-title" className="flex items-center gap-2 font-semibold text-lg">
@@ -300,7 +301,7 @@ export function ShareStep() {
                 <GuardianAssetPanel state={state} purposes={["baptize-review"]} />
               </>
             )}
-            <Button className={`${bigButton} w-fit`} onClick={sendToInbox} disabled={!inboxChecked || busy || (Boolean(inboxConsent) && !state.submitDecision.ok)}>
+            <Button variant="outline" className={`${bigButton} w-fit`} onClick={sendToInbox} disabled={!inboxChecked || busy || (Boolean(inboxConsent) && !state.submitDecision.ok)}>
               {t.share.inboxSend}
             </Button>
           </>
@@ -309,9 +310,7 @@ export function ShareStep() {
 
       <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row sm:justify-between">
         <DeleteStory />
-        <Button variant="outline" className={bigButton} onClick={() => reset("welcome")}>
-          {t.common.newStory}
-        </Button>
+        <NewStoryButton />
       </div>
     </StepShell>
   );

@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ShieldCheck, ShieldX, UserRound } from "lucide-react";
 import { useApp } from "@/components/app-state";
 import { DeleteStory } from "@/components/flow/delete-story";
-import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
+import { EarlierStories } from "@/components/flow/earlier-stories";
+import { bigButton, checkRow, OptionButton, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,6 +26,7 @@ export function WelcomeStep() {
         </Button>
       }
     >
+      <EarlierStories />
       <div className="rounded-xl border bg-card p-5">
         <h2 className="mb-3 font-semibold">{t.welcome.stepsTitle}</h2>
         <ol className="flex flex-col gap-2">
@@ -176,7 +178,7 @@ export function PrivacyStep() {
       <fieldset className="flex flex-col gap-3">
         <legend className="sr-only">{t.privacy.title}</legend>
         {PRIVACY_KEYS.map((key) => (
-          <label key={key} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border bg-card px-4 py-3">
+          <label key={key} className={checkRow}>
             <Checkbox
               checked={prefs[key]}
               onCheckedChange={(checked) => setPrefs((p) => ({ ...p, [key]: checked === true, notSure: false }))}
@@ -184,7 +186,7 @@ export function PrivacyStep() {
             <span className="text-base">{labels[key]}</span>
           </label>
         ))}
-        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border bg-card px-4 py-3">
+        <label className={checkRow}>
           <Checkbox
             checked={prefs.notSure}
             onCheckedChange={(checked) =>

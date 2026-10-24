@@ -65,7 +65,7 @@ export default function InboxPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-heading text-3xl">{t.inbox.title}</h1>
+      <h1 className="font-heading text-3xl font-bold tracking-tight">{t.inbox.title}</h1>
       <Alert>
         <AlertTitle>{t.common.prototypeTitle}</AlertTitle>
         <AlertDescription>{t.inbox.banner}</AlertDescription>
