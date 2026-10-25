@@ -32,7 +32,7 @@ const en = {
     errorFallback: "Something went wrong. Your draft is safe; please try again.",
   },
   welcome: {
-    title: "Tell your story. Choose what to share.",
+    title: "Tell your story in your own words.",
     lead: "Say or type a few words, check them, and decide who receives the result. A short story is enough, and keeping it private is a good choice too.",
     stepsTitle: "How it works",
     steps: [
@@ -41,10 +41,11 @@ const en = {
       "Make a story card or a short video",
       "Approve it, then share it only if you want to",
     ],
-    earlierTitle: "A story from earlier is still here",
-    earlierBody: (time: string) => `This browser started a story at ${time}. The app keeps it for up to 12 hours unless you delete it.`,
-    earlierContinue: "Continue it",
-    earlierDelete: "Delete it",
+    earlierTitle: "Continue an earlier story",
+    earlierStarted: (time: string) => `Started at ${time}`,
+    earlierNote: "Unfinished stories are kept for up to 12 hours unless you delete them.",
+    earlierContinue: "Continue",
+    earlierDelete: "Delete",
   },
   paths: {
     title: "What would you like to share?",
@@ -422,6 +423,7 @@ const en = {
     storyType: { baptism: "Baptism story", testimony: "Testimony" },
     filterLabel: "Show",
     filterAll: "All",
+    filterType: { baptism: "Baptism", testimony: "Testimony" },
   },
 };
 

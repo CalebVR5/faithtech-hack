@@ -28,7 +28,7 @@ const esLatam: Messages = {
     errorFallback: "Algo salió mal. Tu borrador está a salvo; inténtalo de nuevo.",
   },
   welcome: {
-    title: "Cuenta tu historia. Elige qué compartir.",
+    title: "Cuenta tu historia con tus propias palabras.",
     lead: "Di o escribe unas palabras, revísalas y decide quién recibe el resultado. Una historia corta es suficiente, y guardarla para ti también es una buena decisión.",
     stepsTitle: "Cómo funciona",
     steps: [
@@ -37,10 +37,11 @@ const esLatam: Messages = {
       "Crea una tarjeta o un video corto",
       "Apruébalo y compártelo solo si quieres",
     ],
-    earlierTitle: "Una historia de antes sigue aquí",
-    earlierBody: (time: string) => `Este navegador empezó una historia a las ${time}. La aplicación la guarda durante 12 horas como máximo, a menos que la borres.`,
-    earlierContinue: "Continuarla",
-    earlierDelete: "Borrarla",
+    earlierTitle: "Continuar una historia empezada",
+    earlierStarted: (time: string) => `Empezada a las ${time}`,
+    earlierNote: "Las historias sin terminar se guardan durante 12 horas como máximo, a menos que las borres.",
+    earlierContinue: "Continuar",
+    earlierDelete: "Borrar",
   },
   paths: {
     title: "¿Qué te gustaría compartir?",
@@ -418,6 +419,7 @@ const esLatam: Messages = {
     storyType: { baptism: "Historia de bautismo", testimony: "Testimonio" },
     filterLabel: "Mostrar",
     filterAll: "Todo",
+    filterType: { baptism: "Bautismo", testimony: "Testimonio" },
   },
 };
 

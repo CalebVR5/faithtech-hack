@@ -30,6 +30,9 @@ Tokens live in [src/app/globals.css](src/app/globals.css). Rendered cards and vi
 - **No cream, gradients, glass, glows or side-stripe borders.**
 - **The result before the settings.** On the preview, the rendered file and "Approve and continue" come first; choices that change it sit below under "Change the details". Nothing needs a separate "make" or "update" button: the preview follows the choices.
 - **One tap per decision.** No checkbox in front of a button that already states the decision. Consent is one notice per story; approval is one button that also moves on.
+- **The path comes first.** The welcome screen's decision is baptism story or testimony, shown as two path cards (icon tile, title, one-line description, chevron) directly under the intro. Earlier stories sit below as a compact secondary list with outline "Continue" and ghost "Delete", never gold. Later steps name the chosen path in an eyebrow above the title (`eyebrow` on `StepShell`).
+- **Sequences are numbered.** Guiding questions and "How it works" use the teal `StepNumber` circle, so the testimony's before / turning point / since reads as an order, not a checklist.
+- **Filters aren't actions.** A view filter (the inbox's All / Baptism / Testimony) is a segmented control with counts, visually distinct from the buttons beside it.
 - **Helpers stay compact until needed.** The face-cover editor collapses to one line when the cover was placed automatically and nothing was missed, and opens itself when a face was missed or not found.
 
 ## Type
@@ -50,5 +53,5 @@ Motion is limited to state changes. There's no decorative or looping animation.
 
 ## Checks
 
-- `npx impeccable detect --viewport 390x844 http://localhost:3000` and the same at 1280x800 should report no findings. They reported none on 2026-10-24.
+- `npx impeccable detect --viewport 390x844 http://localhost:3000` and the same at 1280x800 should report no findings, for `/` and `/testimony` (the age step). They reported none on 2026-10-25. impeccable 4.7.0 times out loading `/inbox`, so check the inbox by eye.
 - Check every new screen at 375px wide, with one gold action visible at a time.

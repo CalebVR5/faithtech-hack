@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, ShieldX, Sunrise, UserRound, Waves } from "lucide-react";
+import { ChevronRight, ShieldCheck, ShieldX, Sunrise, UserRound, Waves } from "lucide-react";
 import { useApp } from "@/components/app-state";
 import { DeleteStory } from "@/components/flow/delete-story";
 import { EarlierStories } from "@/components/flow/earlier-stories";
-import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
+import { bigButton, OptionButton, StepNumber, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client/api";
@@ -16,6 +16,30 @@ const PATH_ICONS: Record<StoryType, React.ReactNode> = {
   testimony: <Sunrise />,
 };
 
+/** One of the two paths: the screen's main decision, so larger than an ordinary option. */
+function PathCard({ type, onClick }: { type: StoryType; onClick: () => void }) {
+  const { t } = useApp();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full items-start gap-3 rounded-xl border bg-card p-4 text-left transition-colors outline-none hover:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring sm:items-center sm:gap-4 sm:p-5"
+    >
+      <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary sm:size-12 sm:rounded-xl [&_svg]:size-5 sm:[&_svg]:size-6">
+        {PATH_ICONS[type]}
+      </span>
+      <span className="flex flex-1 flex-col gap-1">
+        <span className="font-heading text-lg leading-snug font-bold">{t.paths[type].title}</span>
+        <span className="text-pretty text-muted-foreground">{t.paths[type].body}</span>
+      </span>
+      <ChevronRight
+        aria-hidden
+        className="size-5 shrink-0 self-center text-primary transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+      />
+    </button>
+  );
+}
+
 /**
  * The welcome screen asks which story to tell, so the first tap is a real
  * answer rather than "Start". Nothing is stored until the age question.
@@ -25,17 +49,14 @@ export function WelcomeStep() {
 
   return (
     <StepShell title={t.welcome.title} lead={t.welcome.lead} showBack={false}>
-      <EarlierStories />
       <section aria-labelledby="paths-title" className="flex flex-col gap-3">
         <h2 id="paths-title" className="font-heading text-xl font-bold">
           {t.paths.title}
         </h2>
         {STORY_TYPES.map((type) => (
-          <OptionButton
+          <PathCard
             key={type}
-            icon={PATH_ICONS[type]}
-            title={t.paths[type].title}
-            body={t.paths[type].body}
+            type={type}
             onClick={() => {
               update({ storyType: type });
               go("age");
@@ -43,14 +64,13 @@ export function WelcomeStep() {
           />
         ))}
       </section>
+      <EarlierStories />
       <details className="rounded-xl border bg-card p-4">
         <summary className="cursor-pointer font-semibold">{t.welcome.stepsTitle}</summary>
         <ol className="mt-3 flex flex-col gap-2">
           {t.welcome.steps.map((s, i) => (
             <li key={s} className="flex items-start gap-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm text-primary-foreground" aria-hidden>
-                {i + 1}
-              </span>
+              <StepNumber n={i + 1} />
               <span className="pt-0.5">{s}</span>
             </li>
           ))}
@@ -83,11 +103,16 @@ export function AgeStep() {
   };
 
   return (
-    <StepShell title={t.age.title} lead={t.age.why}>
-      <p className="flex items-center gap-2 font-semibold text-primary [&_svg]:size-5">
-        <span aria-hidden>{PATH_ICONS[storyType]}</span>
-        {t.paths.sharing(t.paths[storyType].title)}
-      </p>
+    <StepShell
+      title={t.age.title}
+      lead={t.age.why}
+      eyebrow={
+        <>
+          <span aria-hidden>{PATH_ICONS[storyType]}</span>
+          {t.paths.sharing(t.paths[storyType].title)}
+        </>
+      }
+    >
       <div className="flex flex-col gap-3">
         <OptionButton title={t.age.adult} onClick={() => answer("adult")} disabled={busy} />
         <OptionButton title={t.age.minor} onClick={() => answer("under-18")} disabled={busy} />

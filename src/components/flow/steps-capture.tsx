@@ -6,7 +6,7 @@ import { useApp, type PendingTranscript } from "@/components/app-state";
 import { CloudConsent } from "@/components/cloud-consent";
 import { RecorderPanel, type CaptureMedia } from "@/components/recorder";
 import { ErrorNote } from "@/components/flow/steps-start";
-import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
+import { bigButton, OptionButton, StepNumber, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -207,15 +207,18 @@ export function WriteStep() {
       ) : (
         t.write.prompts[story.storyType].map((prompt, i) => (
           <div key={prompt.question} className="flex flex-col gap-2">
-            <div className="flex flex-col gap-0.5">
-              <label htmlFor={`prompt-${i}`} className="font-semibold">
-                {prompt.question}
-              </label>
-              {prompt.hint && (
-                <p id={`prompt-${i}-hint`} className="text-sm text-muted-foreground">
-                  {prompt.hint}
-                </p>
-              )}
+            <div className="flex items-start gap-3">
+              <StepNumber n={i + 1} />
+              <div className="flex flex-col gap-0.5 pt-0.5">
+                <label htmlFor={`prompt-${i}`} className="font-semibold">
+                  {prompt.question}
+                </label>
+                {prompt.hint && (
+                  <p id={`prompt-${i}-hint`} className="text-sm text-muted-foreground">
+                    {prompt.hint}
+                  </p>
+                )}
+              </div>
             </div>
             <Textarea
               id={`prompt-${i}`}
@@ -302,17 +305,20 @@ export function useTranscribe(purpose: PendingTranscript["purpose"], media: Capt
   return { busy, error, awaitingConsent, setAwaitingConsent, send, submit };
 }
 
-/** The path's guiding questions, read before speaking or filming. */
+/** The path's guiding questions, in order, read before speaking or filming. */
 function PromptList({ prompts }: { prompts: Prompt[] }) {
   return (
-    <ul className="flex list-disc flex-col gap-2 pl-5 text-lg">
-      {prompts.map((p) => (
-        <li key={p.question}>
-          {p.question}
-          {p.hint && <span className="block text-base text-muted-foreground">{p.hint}</span>}
+    <ol className="flex flex-col gap-3 text-lg">
+      {prompts.map((p, i) => (
+        <li key={p.question} className="flex items-start gap-3">
+          <StepNumber n={i + 1} />
+          <span>
+            {p.question}
+            {p.hint && <span className="block text-base text-muted-foreground">{p.hint}</span>}
+          </span>
         </li>
       ))}
-    </ul>
+    </ol>
   );
 }
 

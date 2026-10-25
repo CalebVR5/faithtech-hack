@@ -106,18 +106,25 @@ export default function InboxPage() {
               {t.inbox.reset}
             </Button>
           </div>
-          <div role="group" aria-label={t.inbox.filterLabel} className="flex flex-wrap gap-2">
-            {(["all", ...STORY_TYPES] as const).map((f) => (
-              <Button
-                key={f}
-                variant="outline"
-                aria-pressed={filter === f}
-                className="h-10 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-river-deep"
-                onClick={() => setFilter(f)}
-              >
-                {f === "all" ? t.inbox.filterAll : t.inbox.storyType[f]}
-              </Button>
-            ))}
+          {/* A segmented control, so it reads as a view filter rather than more actions. */}
+          <div className="flex flex-col gap-2">
+            <span id="inbox-filter" className="text-sm font-semibold">
+              {t.inbox.filterLabel}
+            </span>
+            <div role="group" aria-labelledby="inbox-filter" className="grid grid-cols-3 rounded-xl border bg-card p-1">
+              {(["all", ...STORY_TYPES] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  aria-pressed={filter === f}
+                  className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary aria-pressed:font-bold aria-pressed:text-primary-foreground"
+                  onClick={() => setFilter(f)}
+                >
+                  {f === "all" ? t.inbox.filterAll : t.inbox.filterType[f]}
+                  <span className="tabular-nums opacity-80">{items.filter((i) => f === "all" || i.storyType === f).length}</span>
+                </button>
+              ))}
+            </div>
           </div>
           {shown?.length === 0 && <p className="text-muted-foreground">{t.inbox.empty}</p>}
           <ul className="flex flex-col gap-4">

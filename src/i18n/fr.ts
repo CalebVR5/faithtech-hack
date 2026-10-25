@@ -28,7 +28,7 @@ const fr: Messages = {
     errorFallback: "Un problème est survenu. Votre brouillon est conservé; veuillez réessayer.",
   },
   welcome: {
-    title: "Racontez votre histoire. Choisissez ce que vous partagez.",
+    title: "Racontez votre histoire, avec vos mots.",
     lead: "Dites ou écrivez quelques mots, vérifiez-les et décidez qui recevra le résultat. Une courte histoire suffit, et la garder pour vous est aussi un bon choix.",
     stepsTitle: "Comment ça fonctionne",
     steps: [
@@ -37,10 +37,11 @@ const fr: Messages = {
       "Créez une carte ou une courte vidéo",
       "Approuvez-la, puis partagez-la seulement si vous le voulez",
     ],
-    earlierTitle: "Une histoire commencée plus tôt est encore ici",
-    earlierBody: (time: string) => `Ce navigateur a commencé une histoire à ${time}. L'application la conserve pendant 12 heures au plus, sauf si vous la supprimez.`,
-    earlierContinue: "La continuer",
-    earlierDelete: "La supprimer",
+    earlierTitle: "Reprendre une histoire commencée",
+    earlierStarted: (time: string) => `Commencée à ${time}`,
+    earlierNote: "Les histoires non terminées sont conservées pendant 12 heures au plus, sauf si vous les supprimez.",
+    earlierContinue: "Continuer",
+    earlierDelete: "Supprimer",
   },
   paths: {
     title: "Qu'aimeriez-vous partager?",
@@ -418,6 +419,7 @@ const fr: Messages = {
     storyType: { baptism: "Histoire de baptême", testimony: "Témoignage" },
     filterLabel: "Afficher",
     filterAll: "Tout",
+    filterType: { baptism: "Baptême", testimony: "Témoignage" },
   },
 };
 

@@ -9,12 +9,15 @@ import { Button } from "@/components/ui/button";
 /** One screen of the flow. Moves focus to the heading so screen readers announce each step. */
 export function StepShell({
   title,
+  eyebrow,
   lead,
   children,
   actions,
   showBack = true,
 }: {
   title: string;
+  /** Context above the title, such as the path being shared. */
+  eyebrow?: ReactNode;
   lead?: ReactNode;
   children?: ReactNode;
   actions?: ReactNode;
@@ -35,6 +38,7 @@ export function StepShell({
         </Button>
       )}
       <div className="flex flex-col gap-3">
+        {eyebrow && <div className="-mb-1 flex items-center gap-2 text-sm font-bold text-primary [&_svg]:size-4">{eyebrow}</div>}
         <h1 id="step-title" ref={heading} tabIndex={-1} className="font-heading text-3xl leading-tight font-bold tracking-tight outline-none">
           {title}
         </h1>
@@ -91,6 +95,15 @@ export function OptionButton({
         )}
       </span>
     </button>
+  );
+}
+
+/** A numbered teal circle for sequences: how it works, and the guiding questions in order. */
+export function StepNumber({ n }: { n: number }) {
+  return (
+    <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground" aria-hidden>
+      {n}
+    </span>
   );
 }
 

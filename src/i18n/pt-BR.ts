@@ -28,7 +28,7 @@ const ptBR: Messages = {
     errorFallback: "Algo deu errado. Seu rascunho está salvo; tente de novo.",
   },
   welcome: {
-    title: "Conte sua história. Escolha o que compartilhar.",
+    title: "Conte sua história com as suas palavras.",
     lead: "Fale ou escreva algumas palavras, confira e decida quem recebe o resultado. Uma história curta já basta, e guardá-la só para você também é uma boa escolha.",
     stepsTitle: "Como funciona",
     steps: [
@@ -37,8 +37,9 @@ const ptBR: Messages = {
       "Crie um cartão ou um vídeo curto",
       "Aprove e compartilhe só se quiser",
     ],
-    earlierTitle: "Uma história de antes ainda está aqui",
-    earlierBody: (time: string) => `Este navegador começou uma história às ${time}. O aplicativo a guarda por até 12 horas, a menos que você a apague.`,
+    earlierTitle: "Continuar uma história começada",
+    earlierStarted: (time: string) => `Começada às ${time}`,
+    earlierNote: "Histórias não terminadas ficam guardadas por até 12 horas, a menos que você as apague.",
     earlierContinue: "Continuar",
     earlierDelete: "Apagar",
   },
@@ -418,6 +419,7 @@ const ptBR: Messages = {
     storyType: { baptism: "História de batismo", testimony: "Testemunho" },
     filterLabel: "Mostrar",
     filterAll: "Todas",
+    filterType: { baptism: "Batismo", testimony: "Testemunho" },
   },
 };
 
