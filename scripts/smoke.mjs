@@ -71,6 +71,8 @@ check("ffmpeg ok", h.data.ffmpeg?.ok, h.data);
 
 console.log("adult card flow");
 let r = await a("POST", "/api/stories", { ageGate: "adult", interfaceLanguage: "en" });
+check("story needs a path", r.status === 400 && r.data.code === "story-type-unanswered", r.data);
+r = await a("POST", "/api/stories", { storyType: "baptism", ageGate: "adult", interfaceLanguage: "en" });
 check("create story", r.status === 201, r.data);
 const story = r.data.story;
 r = await a("PATCH", `/api/stories/${story.id}`, { fixtureId: "sample-a-rambling", displayName: "Sam" });
@@ -159,8 +161,26 @@ check("save take", r.status === 200 && r.data.story.take?.audioRef === t.audioRe
 r = await a("POST", "/api/render", { storyId: story.id, kind: "narrated-video", narration: "recorded", outputLanguage: "en", showName: true });
 check("recorded video", r.status === 200 && r.data.asset.spec.captions[0].text.startsWith("I read"), r.data);
 
+console.log("testimony path");
+{
+  const c = client();
+  let q = await c("POST", "/api/stories", { storyType: "testimony", ageGate: "adult", interfaceLanguage: "en" });
+  check("create testimony", q.status === 201 && q.data.story.storyType === "testimony", q.data);
+  const tid = q.data.story.id;
+  q = await c("PATCH", `/api/stories/${tid}`, { fixtureId: "sample-b-short" });
+  check("baptism sample refused on the testimony path", q.status === 400 && q.data.code === "bad-fixture", q.data);
+  q = await c("PATCH", `/api/stories/${tid}`, { fixtureId: "sample-t2-quiet" });
+  check("testimony sample loads", q.status === 200 && q.data.story.sourceLanguage === "fr", q.data);
+  q = await c("POST", "/api/render", { storyId: tid, kind: "card", outputLanguage: "fr" });
+  const tc = q.data.asset;
+  await c("POST", "/api/approve", { assetId: tc.id, assetVersion: tc.version, purpose: "personal-output", decision: "granted" });
+  q = await c("POST", "/api/export", { assetId: tc.id });
+  check("testimony export filename", q.status === 200 && /filename="testimony.png"/.test(q.headers.get("content-disposition")), q.data);
+  await c("DELETE", `/api/stories/${tid}`);
+}
+
 console.log("minor flow");
-r = await a("POST", "/api/stories", { ageGate: "under-18", interfaceLanguage: "en" });
+r = await a("POST", "/api/stories", { storyType: "baptism", ageGate: "under-18", interfaceLanguage: "en" });
 const minor = r.data.story;
 check("minor starts pending", minor.guardianCapture === "pending");
 r = await a("PATCH", `/api/stories/${minor.id}`, { fixtureId: "sample-b-short" });
@@ -183,7 +203,7 @@ mcard = r.data.asset;
 r = await a("POST", "/api/approve", { assetId: mcard.id, assetVersion: mcard.version, purpose: "personal-output", decision: "granted" });
 check("changed asset needs guardian again", r.data.exportDecision?.code === "needs-guardian", r.data);
 
-r = await a("POST", "/api/stories", { ageGate: "not-sure", interfaceLanguage: "fr" });
+r = await a("POST", "/api/stories", { storyType: "testimony", ageGate: "not-sure", interfaceLanguage: "fr" });
 const unsure = r.data.story;
 r = await a("POST", `/api/stories/${unsure.id}/guardian`, { decision: "declined" });
 r = await a("POST", `/api/stories/${unsure.id}/guardian`, { decision: "approved-in-simulation" });
@@ -198,6 +218,7 @@ check("wrong passcode", r.status === 401);
 r = await op("POST", "/api/inbox", { passcode: PASSCODE });
 r = await op("GET", "/api/inbox");
 check("inbox lists submission", r.status === 200 && r.data.items.some((i) => i.id === submissionId), r.data);
+check("inbox shows the path", r.data.items.find((i) => i.id === submissionId)?.storyType === "baptism", r.data);
 const item = r.data.items.find((i) => i.id === submissionId);
 r = await op("GET", item.fileUrl);
 check("inbox file", r.status === 200 && r.data.length > 1000);
@@ -213,7 +234,7 @@ check("withdrawn file gone", r.status === 404);
 console.log("concurrent submissions");
 {
   const c = client();
-  let q = await c("POST", "/api/stories", { ageGate: "adult", interfaceLanguage: "en" });
+  let q = await c("POST", "/api/stories", { storyType: "baptism", ageGate: "adult", interfaceLanguage: "en" });
   const sid = q.data.story.id;
   await c("PATCH", `/api/stories/${sid}`, { fixtureId: "sample-b-short" });
   q = await c("POST", "/api/render", { storyId: sid, kind: "card", outputLanguage: "en" });

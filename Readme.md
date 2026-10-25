@@ -34,11 +34,12 @@ All scripts are plain `next`/`vitest`/`node` commands with no shell-specific syn
 
 | Page | What it is |
 |---|---|
-| `/` | The storyteller's flow, in English, French, Latin American Spanish or Brazilian Portuguese |
+| `/` | The storyteller's flow, in English, French, Latin American Spanish or Brazilian Portuguese. Starts by choosing a baptism story or a testimony |
+| `/baptism` · `/testimony` | Direct links (for a church or event QR code) that start on one path; Back still leads to the choice |
 | `/privacy` | Short, truthful privacy notice for this test deployment |
 | `/inbox` | The operator's demo inbox. Needs `INBOX_PASSCODE` from `.env.local`; if unset, a random passcode is printed in the server console |
 
-The fastest demo: **Start → Yes, 18 or older → Continue → Use a sample story → pick one → Continue → Story card → Make preview → approve → Continue to sharing**. For the guardian gate, answer "No, I'm under 18" and use the *Simulate* buttons.
+The fastest demo: **My baptism story (or My testimony) → Yes, 18 or older → Continue → Use a sample story → pick one → Continue → Story card → Make preview → approve → Continue to sharing**. For the guardian gate, answer "No, I'm under 18" and use the *Simulate* buttons.
 
 ### Demoing on phones
 
@@ -66,7 +67,7 @@ If `gcp` is selected without a key, requests fail with a clear error. The app ne
 
 The storyteller's flow (plan section 3), end to end:
 
-1. **Entry:** interface language by name (no flags); the age question is on the welcome screen, so the first tap answers it.
+1. **Entry:** interface language by name (no flags). The first tap chooses the path, **My baptism story** or **My testimony**, then the age question starts the story. The path sets the guiding questions (a testimony asks what you were like before knowing Christ, what happened to make you change, and what has changed since), the sample stories, the label on cards and plain-background videos ("MY TESTIMONY" in four languages) and the export filename.
 2. **Guardian gate:** under-18 and not-sure stories can't be written, recorded, rendered, exported or submitted until a *simulated* guardian approves. The server enforces this on every content route, not just the UI. A decline is final for that story.
 3. **What gets shared:** no separate privacy screen. Each format, and each voice choice, carries a one-line note of exactly what it shares ("Shares your face, voice and surroundings…", "No face or voice"), with one line on names and identifying details.
 4. **Capture:** type with three optional prompts or "my own way"; record your voice or **film yourself** (camera on to frame, then record; MediaRecorder with detected MIME type, 60-second hard stop, retry, playback); upload an audio or video file; or load a fabricated sample. Story language is separate from interface language, with regional transcription accents (es-MX, es-PE, fr-CA…).
@@ -92,7 +93,7 @@ The storyteller's flow (plan section 3), end to end:
 | Session-owned, expiring temp media store | [`src/lib/server/temp-store.ts`](src/lib/server/temp-store.ts) |
 | UI flow, recorder, consent panel | [`src/components/`](src/components) |
 | Interface strings: en, fr (Canada), es-419, pt-BR. Drafts, labeled in the UI as unreviewed | [`src/i18n/`](src/i18n) |
-| The hackathon's three made-up sample testimonies, verbatim: A long and rambling (English), B very short (English), C Spanish voice note. No French or Portuguese sample yet; mock transcription uses a labeled placeholder there | [`src/fixtures/stories.ts`](src/fixtures/stories.ts) |
+| Made-up samples for each path. Baptism: the hackathon's three, verbatim (A long and rambling, B very short, C Spanish voice note). Testimony: T1 before/how/after (English), T2 raised in church (French), T3 voice note (Portuguese), T4 a family member (Spanish). Mock transcription returns a sample from the story's own path and language, or a labeled placeholder | [`src/fixtures/stories.ts`](src/fixtures/stories.ts) |
 
 ### API
 
@@ -100,7 +101,7 @@ All routes are session-owned (anonymous `sid` cookie). Another session gets `404
 
 | Route | Purpose |
 |---|---|
-| `GET`/`POST /api/stories` · `GET`/`PATCH`/`DELETE /api/stories/:id` | List this session's stories (so a reload or "Start a new story" can continue or delete them); create after the age question; update text, take, name, language or privacy (content edits bump the version); delete everything |
+| `GET`/`POST /api/stories` · `GET`/`PATCH`/`DELETE /api/stories/:id` | List this session's stories (so a reload or "Start a new story" can continue or delete them); create after the path (`storyType`: `baptism`/`testimony`) and age question; update text, take, name, language or privacy (content edits bump the version); delete everything |
 | `POST /api/stories/:id/guardian` | **Test scenario:** simulated guardian decision that unlocks capture |
 | `POST /api/transcribe` | multipart `audio` (audio or camera video; only the sound goes to the speech service), `storyId`, `cloudProcessingAccepted`, optional `sttLocale`, `keep` (keep a converted copy ≤ 1 h for narration), `scriptText` (mock only) |
 | `POST /api/render` | `storyId`, `kind` (`card`/`narrated-video`/`captioned-video`), `narration`, `outputLanguage`, `span`, `showName`, `showStoryLabel`, `cloud` consents. Returns the asset and its permission state |

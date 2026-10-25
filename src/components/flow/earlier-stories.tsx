@@ -56,7 +56,10 @@ export function EarlierStories() {
       <ul className="flex flex-col gap-4">
         {stories.map((s) => (
           <li key={s.id} className="flex flex-col gap-3">
-            <p>{t.welcome.earlierBody(time.format(s.createdAt))}</p>
+            <p>
+              <span className="block font-semibold text-primary">{t.paths[s.storyType].title}</span>
+              {t.welcome.earlierBody(time.format(s.createdAt))}
+            </p>
             {confirming === s.id ? (
               <div role="group" aria-label={t.common.deleteStory} className="flex flex-col gap-3">
                 <p>{t.common.deleteConfirm}</p>

@@ -2,9 +2,15 @@
 // shape (enforced by the Messages type). Consent and privacy wording here is
 // prototype copy; review by counsel and native speakers is pilot work.
 
+/** A guiding question on the write and record screens, with an optional second line. */
+export interface Prompt {
+  question: string;
+  hint?: string;
+}
+
 const en = {
   common: {
-    appName: "Share your baptism story",
+    appName: "Share your story",
     continue: "Continue",
     back: "Back",
     startOver: "Start over",
@@ -27,7 +33,7 @@ const en = {
   },
   welcome: {
     title: "Tell your story. Choose what to share.",
-    lead: "Say or type a few words about your baptism, check them, and decide who receives the result. A short story is enough, and keeping it private is a good choice too.",
+    lead: "Say or type a few words, check them, and decide who receives the result. A short story is enough, and keeping it private is a good choice too.",
     stepsTitle: "How it works",
     steps: [
       "Tell it your way, typed or spoken",
@@ -39,6 +45,18 @@ const en = {
     earlierBody: (time: string) => `This browser started a story at ${time}. The app keeps it for up to 12 hours unless you delete it.`,
     earlierContinue: "Continue it",
     earlierDelete: "Delete it",
+  },
+  paths: {
+    title: "What would you like to share?",
+    baptism: {
+      title: "My baptism story",
+      body: "What led you to be baptized, and what that moment was like.",
+    },
+    testimony: {
+      title: "My testimony",
+      body: "What you were like before knowing Christ, how you became a Christian, and what has changed since.",
+    },
+    sharing: (name: string) => `You're sharing: ${name}`,
   },
   age: {
     title: "Are you 18 or older?",
@@ -83,11 +101,18 @@ const en = {
   write: {
     title: "Tell your story",
     lead: "Answer any of these, or none. A short answer is enough. You don't need a dramatic story, certainty, or an answer to every question.",
-    prompts: [
-      "What would you like to share about your life before you were baptized?",
-      "What led you to choose baptism?",
-      "What was that moment like, and what would you like someone else to know?",
-    ],
+    prompts: {
+      baptism: [
+        { question: "What would you like to share about your life before you were baptized?" },
+        { question: "What led you to choose baptism?" },
+        { question: "What was that moment like, and what would you like someone else to know?" },
+      ] as Prompt[],
+      testimony: [
+        { question: "What you used to be like before knowing Christ", hint: "Past actions and attitudes" },
+        { question: "What happened to make you change", hint: "How you became a Christian" },
+        { question: "What has changed since you met Christ", hint: "Present actions and attitudes" },
+      ] as Prompt[],
+    },
     ownWay: "I'd rather tell it my own way",
     usePrompts: "Show the questions",
     ownWayLabel: "Your story",
@@ -394,6 +419,9 @@ const en = {
     reset: "Clear inbox",
     refresh: "Refresh",
     voice: { recorded: "Recorded voice", synthetic: "Synthetic voice", none: "No voice" },
+    storyType: { baptism: "Baptism story", testimony: "Testimony" },
+    filterLabel: "Show",
+    filterAll: "All",
   },
 };
 

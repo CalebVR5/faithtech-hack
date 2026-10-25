@@ -83,6 +83,7 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
     throw new RequestError(403, "translation-consent-needed", "Translation needs your permission to send your words to the translation service.");
   }
   const labels = OUTPUT_LABELS[choices.outputLanguage];
+  const storyTypeLabel = labels.storyLabel[story.storyType];
   const displayName = choices.showName && story.displayName ? story.displayName : undefined;
   const base = {
     storyId: story.id,
@@ -107,7 +108,7 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
     }
     const excerpt = sel.words !== text.trim();
     const storyLabel = choices.showStoryLabel
-      ? excerpt ? `${labels.storyLabel} · ${labels.excerpt}` : labels.storyLabel
+      ? excerpt ? `${storyTypeLabel} · ${labels.excerpt}` : storyTypeLabel
       : excerpt ? labels.excerpt : undefined;
     const file = await renderCardPng({
       text: cardText,
@@ -187,7 +188,7 @@ async function compose(sessionId: string, story: Story, choices: RenderChoices):
   const layout = {
     durationMs,
     captions,
-    storyLabel: choices.showStoryLabel ? labels.storyLabel : undefined,
+    storyLabel: choices.showStoryLabel ? storyTypeLabel : undefined,
     displayName,
     notes: [
       narration === "synthetic" && labels.synthetic,

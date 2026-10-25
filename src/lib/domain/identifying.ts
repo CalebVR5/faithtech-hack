@@ -38,7 +38,14 @@ const AGE_WORDS: Record<LanguageId, string[]> = {
 };
 
 /** Capitalized words that are rarely identifying on their own. */
-const COMMON_CAPITALIZED = new Set(["I", "I'm", "I've", "I'd", "I'll", "God", "Jesus", "Christ", "Dieu", "Jésus", "Dios", "Jesús", "Deus", "Sunday", "Sundays"]);
+const COMMON_CAPITALIZED = new Set([
+  "I", "I'm", "I've", "I'd", "I'll", "Sunday", "Sundays",
+  // Testimonies name these often; they don't identify the storyteller.
+  "God", "Jesus", "Christ", "Lord", "Bible",
+  "Dieu", "Jésus", "Seigneur",
+  "Dios", "Jesús", "Cristo", "Señor", "Biblia",
+  "Deus", "Senhor", "Bíblia",
+]);
 
 const WORD = /[\p{L}\p{M}][\p{L}\p{M}'’-]*|\d+(?:[/.:-]\d+)*/gu;
 

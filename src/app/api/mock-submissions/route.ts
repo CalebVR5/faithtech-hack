@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       file: Buffer.from(file.data),
       mimeType: file.record.mimeType,
       kind: asset.spec.kind,
+      storyType: story.storyType,
       assetText: asset.spec.kind === "card" ? (asset.spec.cardText ?? "") : asset.spec.captions.map((c) => c.text).join(" "),
       language: asset.spec.captionLanguage,
       machineTranslated: asset.spec.machineTranslated,

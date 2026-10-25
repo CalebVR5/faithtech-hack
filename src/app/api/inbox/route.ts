@@ -16,6 +16,7 @@ export async function GET() {
     .map((e) => ({
       ...e.submission,
       kind: e.kind,
+      storyType: e.storyType,
       mimeType: e.mimeType,
       assetText: e.assetText,
       language: e.language,

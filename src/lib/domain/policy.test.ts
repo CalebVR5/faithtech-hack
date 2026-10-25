@@ -6,6 +6,7 @@ const story: Story = {
   id: "story-1",
   fixture: true,
   sessionId: "session-a",
+  storyType: "baptism",
   ageGate: "adult",
   guardianCapture: "not-needed",
   interfaceLanguage: "en",

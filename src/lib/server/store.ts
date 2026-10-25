@@ -19,6 +19,7 @@ export interface InboxEntry {
   file: Buffer;
   mimeType: string;
   kind: Asset["spec"]["kind"];
+  storyType: Story["storyType"];
   /** Words visible or audible in the asset, for accessibility. */
   assetText: string;
   language: string;
@@ -71,8 +72,11 @@ export const db: Db = (g.__testimonyDb ??= {
   heard: new Map(),
   inboxTokens: new Set(),
 });
-// Older dev-server instances created the store before `heard` existed.
+// Older dev-server instances created the store before `heard` existed, and
+// before the testimony path, when every story was a baptism story.
 db.heard ??= new Map();
+for (const s of db.stories.values()) s.storyType ??= "baptism";
+for (const e of db.inbox.values()) e.storyType ??= "baptism";
 
 export function newId(): string {
   return randomUUID();

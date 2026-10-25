@@ -71,6 +71,7 @@ export async function POST(request: Request) {
       language: story.sourceLanguage,
       sttLocale,
       scriptText: typeof script === "string" ? script.slice(0, MAX_STORY_CHARS) : undefined,
+      storyType: story.storyType,
     });
     // Word times from speech-to-text drift by a few hundred milliseconds; the
     // recording's own pauses show exactly when each phrase starts.

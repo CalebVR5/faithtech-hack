@@ -1,3 +1,4 @@
+import { exportFilename } from "@/lib/domain/output-labels";
 import { authorize } from "@/lib/domain/policy";
 import { requireAsset } from "@/lib/server/guards";
 import { handleRouteError, jsonError } from "@/lib/server/http";
@@ -19,8 +20,7 @@ export async function POST(request: Request) {
     const file = asset.fileRef ? await getFile(sessionId, asset.fileRef) : null;
     if (!file) return jsonError(410, "This version has expired. Please make it again.", "preview-expired");
 
-    // Generic filename: no name, language or story details in it (plan section 6).
-    const filename = asset.spec.kind === "card" ? "baptism-story.png" : "baptism-story.mp4";
+    const filename = exportFilename(story.storyType, asset.spec.kind);
     return new Response(new Uint8Array(file.data), {
       headers: {
         "Content-Type": file.record.mimeType,

@@ -23,8 +23,8 @@ const story = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Share your baptism story",
-  description: "Tell your baptism story in your own words and choose who receives it.",
+  title: "Share your story",
+  description: "Tell your baptism story or your testimony in your own words and choose who receives it.",
   // Story content must never be indexed or previewed by crawlers.
   robots: { index: false, follow: false },
 };

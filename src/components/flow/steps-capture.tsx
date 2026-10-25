@@ -11,7 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { STORY_FIXTURES } from "@/fixtures/stories";
+import { fixturesFor } from "@/fixtures/stories";
+import type { Prompt } from "@/i18n/en";
 import { api } from "@/lib/client/api";
 import { findIdentifyingDetails } from "@/lib/domain/identifying";
 import { LANGUAGE_IDS, LANGUAGES, isLanguageId, type LanguageId } from "@/lib/domain/languages";
@@ -35,8 +36,10 @@ export function CaptureStep() {
     }
   };
 
+  const samples = fixturesFor(story.storyType);
+
   const chooseSample = async (id: string) => {
-    const fixture = STORY_FIXTURES.find((f) => f.id === id)!;
+    const fixture = samples.find((f) => f.id === id)!;
     try {
       // Samples carry no display name; clear one left over from an earlier sample.
       await saveStory({ fixtureId: id, displayName: "" });
@@ -128,7 +131,7 @@ export function CaptureStep() {
         />
         {showSamples && (
           <ul className="flex flex-col gap-2 pl-2">
-            {STORY_FIXTURES.map((f) => (
+            {samples.map((f) => (
               <li key={f.id}>
                 <button
                   type="button"
@@ -202,13 +205,21 @@ export function WriteStep() {
           />
         </div>
       ) : (
-        t.write.prompts.map((prompt, i) => (
-          <div key={prompt} className="flex flex-col gap-2">
-            <label htmlFor={`prompt-${i}`} className="font-semibold">
-              {prompt}
-            </label>
+        t.write.prompts[story.storyType].map((prompt, i) => (
+          <div key={prompt.question} className="flex flex-col gap-2">
+            <div className="flex flex-col gap-0.5">
+              <label htmlFor={`prompt-${i}`} className="font-semibold">
+                {prompt.question}
+              </label>
+              {prompt.hint && (
+                <p id={`prompt-${i}-hint`} className="text-sm text-muted-foreground">
+                  {prompt.hint}
+                </p>
+              )}
+            </div>
             <Textarea
               id={`prompt-${i}`}
+              aria-describedby={prompt.hint ? `prompt-${i}-hint` : undefined}
               lang={lang}
               className="min-h-24 text-base md:text-base"
               value={flow.answers[i]}
@@ -291,6 +302,20 @@ export function useTranscribe(purpose: PendingTranscript["purpose"], media: Capt
   return { busy, error, awaitingConsent, setAwaitingConsent, send, submit };
 }
 
+/** The path's guiding questions, read before speaking or filming. */
+function PromptList({ prompts }: { prompts: Prompt[] }) {
+  return (
+    <ul className="flex list-disc flex-col gap-2 pl-5 text-lg">
+      {prompts.map((p) => (
+        <li key={p.question}>
+          {p.question}
+          {p.hint && <span className="block text-base text-muted-foreground">{p.hint}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function RecordStep() {
   const { t, flow, go } = useApp();
   const media: CaptureMedia = flow.captureMode === "film" ? "video" : "audio";
@@ -298,11 +323,7 @@ export function RecordStep() {
 
   return (
     <StepShell title={media === "video" ? t.record.filmTitle : t.record.title} lead={t.record.lead}>
-      <ul className="flex list-disc flex-col gap-2 pl-5 text-lg">
-        {t.write.prompts.map((p) => (
-          <li key={p}>{p}</li>
-        ))}
-      </ul>
+      <PromptList prompts={t.write.prompts[flow.story!.storyType]} />
       {awaitingConsent ? (
         <CloudConsent
           keepsRecording

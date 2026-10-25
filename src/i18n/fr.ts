@@ -6,7 +6,7 @@ import type { Messages } from "./index";
 
 const fr: Messages = {
   common: {
-    appName: "Raconter mon baptême",
+    appName: "Raconter mon histoire",
     continue: "Continuer",
     back: "Retour",
     startOver: "Recommencer",
@@ -29,7 +29,7 @@ const fr: Messages = {
   },
   welcome: {
     title: "Racontez votre histoire. Choisissez ce que vous partagez.",
-    lead: "Dites ou écrivez quelques mots sur votre baptême, vérifiez-les et décidez qui recevra le résultat. Une courte histoire suffit, et la garder pour vous est aussi un bon choix.",
+    lead: "Dites ou écrivez quelques mots, vérifiez-les et décidez qui recevra le résultat. Une courte histoire suffit, et la garder pour vous est aussi un bon choix.",
     stepsTitle: "Comment ça fonctionne",
     steps: [
       "Racontez-la à votre façon, à l'écrit ou à voix haute",
@@ -41,6 +41,18 @@ const fr: Messages = {
     earlierBody: (time: string) => `Ce navigateur a commencé une histoire à ${time}. L'application la conserve pendant 12 heures au plus, sauf si vous la supprimez.`,
     earlierContinue: "La continuer",
     earlierDelete: "La supprimer",
+  },
+  paths: {
+    title: "Qu'aimeriez-vous partager?",
+    baptism: {
+      title: "Mon histoire de baptême",
+      body: "Ce qui vous a amené·e au baptême, et comment vous avez vécu ce moment.",
+    },
+    testimony: {
+      title: "Mon témoignage",
+      body: "Qui vous étiez avant de connaître le Christ, comment vous êtes devenu·e chrétien·ne, et ce qui a changé depuis.",
+    },
+    sharing: (name: string) => `Vous partagez : ${name}`,
   },
   age: {
     title: "Avez-vous 18 ans ou plus?",
@@ -85,11 +97,18 @@ const fr: Messages = {
   write: {
     title: "Racontez votre histoire",
     lead: "Répondez à l'une de ces questions, ou à aucune. Une courte réponse suffit. Pas besoin d'une histoire spectaculaire, de certitudes ni de répondre à tout.",
-    prompts: [
-      "Qu'aimeriez-vous partager sur votre vie avant votre baptême?",
-      "Qu'est-ce qui vous a amené·e à choisir le baptême?",
-      "Comment avez-vous vécu ce moment, et qu'aimeriez-vous que d'autres sachent?",
-    ],
+    prompts: {
+      baptism: [
+        { question: "Qu'aimeriez-vous partager sur votre vie avant votre baptême?" },
+        { question: "Qu'est-ce qui vous a amené·e à choisir le baptême?" },
+        { question: "Comment avez-vous vécu ce moment, et qu'aimeriez-vous que d'autres sachent?" },
+      ],
+      testimony: [
+        { question: "Ce que vous étiez avant de connaître le Christ", hint: "Vos actions et attitudes passées" },
+        { question: "Ce qui vous a fait changer", hint: "Comment vous êtes devenu·e chrétien·ne" },
+        { question: "Ce qui a changé depuis que vous avez rencontré le Christ", hint: "Vos actions et attitudes d'aujourd'hui" },
+      ],
+    },
     ownWay: "Je préfère la raconter à ma façon",
     usePrompts: "Afficher les questions",
     ownWayLabel: "Votre histoire",
@@ -396,6 +415,9 @@ const fr: Messages = {
     reset: "Vider la boîte",
     refresh: "Actualiser",
     voice: { recorded: "Voix enregistrée", synthetic: "Voix synthétique", none: "Sans voix" },
+    storyType: { baptism: "Histoire de baptême", testimony: "Témoignage" },
+    filterLabel: "Afficher",
+    filterAll: "Tout",
   },
 };
 

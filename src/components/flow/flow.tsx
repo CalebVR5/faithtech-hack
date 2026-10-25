@@ -5,10 +5,11 @@ import { useApp, type Step } from "@/components/app-state";
 import { CaptureStep, RecordStep, ReviewStep, TranscriptStep, WriteStep } from "@/components/flow/steps-capture";
 import { FormatStep, PreviewStep, ScriptStep } from "@/components/flow/steps-output";
 import { ShareStep } from "@/components/flow/step-share";
-import { GuardianStep, WelcomeStep } from "@/components/flow/steps-start";
+import { AgeStep, GuardianStep, WelcomeStep } from "@/components/flow/steps-start";
 import { bigButton, StepShell } from "@/components/step-shell";
 import { Button } from "@/components/ui/button";
 import { Waterline } from "@/components/waterline";
+import type { StoryType } from "@/lib/domain/types";
 
 /** Coarse progress through the four stages shown on the welcome screen. */
 const STAGE: Partial<Record<Step, number>> = {
@@ -23,21 +24,33 @@ const STAGE: Partial<Record<Step, number>> = {
   share: 3,
 };
 
-export function Flow() {
-  const { t, flow, reset } = useApp();
+/**
+ * The storyteller's flow. `path` comes from a direct link (/baptism or
+ * /testimony): a fresh start skips the welcome screen's choice, and Back still
+ * leads to it. Once a path is chosen, the link doesn't override it.
+ */
+export function Flow({ path }: { path?: StoryType }) {
+  const { t, flow, update, reset } = useApp();
   const stage = STAGE[flow.step];
 
-  // Steps after the age gate need a story; a missing one means the session was reset.
-  const lostStory = flow.step !== "welcome" && flow.step !== "deleted" && !flow.story;
+  const startOnPath = path !== undefined && flow.step === "welcome" && !flow.story && !flow.storyType;
   useEffect(() => {
-    if (lostStory) reset("welcome");
-  }, [lostStory, reset]);
-  if (lostStory) return null;
+    if (startOnPath) update({ storyType: path, step: "age", history: ["welcome"] });
+  }, [path, startOnPath, update]);
+
+  // Steps after the age gate need a story; a missing one means the session was reset.
+  const lostStory = !["welcome", "age", "deleted"].includes(flow.step) && !flow.story;
+  const lostPath = flow.step === "age" && !flow.storyType;
+  useEffect(() => {
+    if (lostStory || lostPath) reset("welcome");
+  }, [lostStory, lostPath, reset]);
+  if (lostStory || lostPath || startOnPath) return null;
 
   return (
     <>
       {stage !== undefined && <Waterline stage={stage} labels={t.welcome.steps} title={t.welcome.stepsTitle} />}
       {flow.step === "welcome" && <WelcomeStep />}
+      {flow.step === "age" && <AgeStep />}
       {flow.step === "guardian" && <GuardianStep />}
       {flow.step === "capture" && <CaptureStep />}
       {flow.step === "write" && <WriteStep />}

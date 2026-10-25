@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { STORY_FIXTURES } from "@/fixtures/stories";
 import { LANGUAGE_IDS, LANGUAGES, resolveSttLocale } from "@/lib/domain/languages";
 import { proportionalSegments, splitSentences } from "@/lib/domain/text";
+import type { StoryType } from "@/lib/domain/types";
 import { wavDurationMs } from "@/lib/media/wav";
 import { mockProvider } from "./mock";
 
@@ -21,13 +22,14 @@ describe("mock provider", () => {
     expect(out).toEqual(["[mock pt] Hello."]);
   });
 
-  const transcribe = (language: (typeof LANGUAGE_IDS)[number]) =>
+  const transcribe = (language: (typeof LANGUAGE_IDS)[number], storyType?: StoryType) =>
     mockProvider.transcribe({
       wav: Buffer.alloc(0),
       sampleRate: 16000,
       durationMs: 20000,
       language,
       sttLocale: LANGUAGES[language].sttLocale,
+      storyType,
     });
 
   it("transcribes to the sample story in that language", async () => {
@@ -36,8 +38,13 @@ describe("mock provider", () => {
     expect(es.words.some((w) => w.uncertain)).toBe(true);
   });
 
-  it.each(["fr", "pt-BR"] as const)("never returns another language's sample for %s", async (language) => {
-    const out = await transcribe(language);
+  it("transcribes a testimony to a testimony sample", async () => {
+    const pt = await transcribe("pt-BR", "testimony");
+    expect(pt.text).toContain("meu nome é Rafael");
+  });
+
+  it.each(["fr", "pt-BR"] as const)("never returns another language's or path's sample for a %s baptism story", async (language) => {
+    const out = await transcribe(language, "baptism");
     expect(STORY_FIXTURES.some((f) => f.text === out.text)).toBe(false);
     expect(out.text.length).toBeGreaterThan(0);
   });

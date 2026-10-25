@@ -25,7 +25,7 @@ describe("renderers", { timeout: 60_000 }, () => {
   it("renders a card PNG with accented text", async () => {
     const png = await renderCardPng({
       text: es.text.slice(0, 200),
-      storyLabel: `${OUTPUT_LABELS["es-419"].storyLabel} · ${OUTPUT_LABELS["es-419"].excerpt}`,
+      storyLabel: `${OUTPUT_LABELS["es-419"].storyLabel.baptism} · ${OUTPUT_LABELS["es-419"].excerpt}`,
       displayName: "Carla",
       notes: [OUTPUT_LABELS["es-419"].machineTranslated],
     });
@@ -39,7 +39,7 @@ describe("renderers", { timeout: 60_000 }, () => {
       audio: toneWav(durationMs, 24_000),
       durationMs,
       captions: buildSlides(words, "es-419", durationMs),
-      storyLabel: OUTPUT_LABELS["es-419"].storyLabel,
+      storyLabel: OUTPUT_LABELS["es-419"].storyLabel.testimony,
       displayName: "Carla",
       notes: [OUTPUT_LABELS["es-419"].synthetic],
     });
@@ -64,7 +64,7 @@ describe("renderers", { timeout: 60_000 }, () => {
       video: source,
       durationMs: Math.min(durationMs, 3000),
       captions: buildSlides(words, "es-419", 3000),
-      storyLabel: OUTPUT_LABELS["es-419"].storyLabel,
+      storyLabel: OUTPUT_LABELS["es-419"].storyLabel.baptism,
       displayName: "Carla",
       notes: [],
     });

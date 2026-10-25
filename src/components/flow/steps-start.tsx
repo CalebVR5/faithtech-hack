@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, ShieldX, UserRound } from "lucide-react";
+import { ShieldCheck, ShieldX, Sunrise, UserRound, Waves } from "lucide-react";
 import { useApp } from "@/components/app-state";
 import { DeleteStory } from "@/components/flow/delete-story";
 import { EarlierStories } from "@/components/flow/earlier-stories";
@@ -9,42 +9,39 @@ import { bigButton, OptionButton, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client/api";
-import type { AgeGate } from "@/lib/domain/types";
+import { STORY_TYPES, type AgeGate, type StoryType } from "@/lib/domain/types";
+
+const PATH_ICONS: Record<StoryType, React.ReactNode> = {
+  baptism: <Waves />,
+  testimony: <Sunrise />,
+};
 
 /**
- * The welcome screen asks the age question directly, so the first tap is a
- * real answer rather than "Start" (plan section 3: no story content before it).
+ * The welcome screen asks which story to tell, so the first tap is a real
+ * answer rather than "Start". Nothing is stored until the age question.
  */
 export function WelcomeStep() {
-  const { t, ui, update, go, errorText } = useApp();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const answer = async (ageGate: AgeGate) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const { story } = await api.createStory({ ageGate, interfaceLanguage: ui });
-      update({ story });
-      go(ageGate === "adult" ? "capture" : "guardian");
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { t, update, go } = useApp();
 
   return (
     <StepShell title={t.welcome.title} lead={t.welcome.lead} showBack={false}>
       <EarlierStories />
-      <section aria-labelledby="age-title" className="flex flex-col gap-3">
-        <h2 id="age-title" className="font-heading text-xl font-bold">
-          {t.age.title}
+      <section aria-labelledby="paths-title" className="flex flex-col gap-3">
+        <h2 id="paths-title" className="font-heading text-xl font-bold">
+          {t.paths.title}
         </h2>
-        <p className="text-muted-foreground">{t.age.why}</p>
-        <OptionButton title={t.age.adult} onClick={() => answer("adult")} disabled={busy} />
-        <OptionButton title={t.age.minor} onClick={() => answer("under-18")} disabled={busy} />
-        {error && <ErrorNote message={error} />}
+        {STORY_TYPES.map((type) => (
+          <OptionButton
+            key={type}
+            icon={PATH_ICONS[type]}
+            title={t.paths[type].title}
+            body={t.paths[type].body}
+            onClick={() => {
+              update({ storyType: type });
+              go("age");
+            }}
+          />
+        ))}
       </section>
       <details className="rounded-xl border bg-card p-4">
         <summary className="cursor-pointer font-semibold">{t.welcome.stepsTitle}</summary>
@@ -59,6 +56,45 @@ export function WelcomeStep() {
           ))}
         </ol>
       </details>
+    </StepShell>
+  );
+}
+
+/** The age question starts the story (plan section 3: no story content before it). */
+export function AgeStep() {
+  const { t, ui, flow, update, go, errorText } = useApp();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const storyType = flow.storyType;
+  if (!storyType) return null;
+
+  const answer = async (ageGate: AgeGate) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { story } = await api.createStory({ storyType, ageGate, interfaceLanguage: ui });
+      update({ story });
+      go(ageGate === "adult" ? "capture" : "guardian");
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <StepShell title={t.age.title} lead={t.age.why}>
+      <p className="flex items-center gap-2 font-semibold text-primary [&_svg]:size-5">
+        <span aria-hidden>{PATH_ICONS[storyType]}</span>
+        {t.paths.sharing(t.paths[storyType].title)}
+      </p>
+      <div className="flex flex-col gap-3">
+        <OptionButton title={t.age.adult} onClick={() => answer("adult")} disabled={busy} />
+        <OptionButton title={t.age.minor} onClick={() => answer("under-18")} disabled={busy} />
+      </div>
+      {error && <ErrorNote message={error} />}
+      {/* Someone arriving by a direct link skips the welcome screen, so their earlier story shows here too. */}
+      <EarlierStories />
     </StepShell>
   );
 }

@@ -8,6 +8,7 @@ import { ErrorNote } from "@/components/flow/steps-start";
 import { bigButton, StepShell } from "@/components/step-shell";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client/api";
+import { exportFilename } from "@/lib/domain/output-labels";
 
 type Destination = "whatsapp" | "instagram" | "save";
 
@@ -35,7 +36,7 @@ export function ShareStep() {
     setError(null);
     try {
       const blob = await api.exportAsset(asset.id);
-      const name = asset.spec.kind === "card" ? "baptism-story.png" : "baptism-story.mp4";
+      const name = exportFilename(flow.story?.storyType ?? "baptism", asset.spec.kind);
       const f = new File([blob], name, { type: blob.type || asset.mimeType });
       setFile({ file: f, url: URL.createObjectURL(f) });
     } catch (err) {

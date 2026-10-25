@@ -47,7 +47,7 @@ export interface TranscribeResult {
 export const api = {
   health: () => request<{ provider: string }>("GET", "/api/health"),
   listStories: () => request<{ stories: StoryView[]; expiresAfterMs?: number }>("GET", "/api/stories"),
-  createStory: (body: { ageGate: string; interfaceLanguage: string }) =>
+  createStory: (body: { storyType: string; ageGate: string; interfaceLanguage: string }) =>
     request<{ story: StoryView }>("POST", "/api/stories", body),
   updateStory: (id: string, body: Record<string, unknown>) =>
     request<{ story: StoryView }>("PATCH", `/api/stories/${id}`, body),

@@ -93,7 +93,8 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/stories/[i
     if (touchesContent) requireCapture(story);
 
     if ("fixtureId" in body) {
-      const fixture = STORY_FIXTURES.find((f) => f.id === body.fixtureId);
+      // A baptism sample in a testimony (or the reverse) would carry the wrong label.
+      const fixture = STORY_FIXTURES.find((f) => f.id === body.fixtureId && f.storyType === story.storyType);
       if (!fixture) throw new RequestError(400, "bad-fixture", "Unknown sample story.");
       story.fixture = true;
       story.reviewedText = fixture.text;

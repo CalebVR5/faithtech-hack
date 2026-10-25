@@ -8,6 +8,14 @@ import type { TimedWord } from "./timing";
 
 export type AgeGate = "unanswered" | "adult" | "under-18" | "not-sure";
 
+/** The two paths: a baptism story, or a testimony of coming to faith. Chosen before the story starts. */
+export type StoryType = "baptism" | "testimony";
+export const STORY_TYPES: readonly StoryType[] = ["baptism", "testimony"];
+
+export function isStoryType(value: unknown): value is StoryType {
+  return value === "baptism" || value === "testimony";
+}
+
 export type NarrationMode = "recorded" | "synthetic" | "none";
 export type FootageMode = "original" | "blurred" | "neutral";
 /** Option A card, option C narration over a plain background, option B the person's own video. */
@@ -78,6 +86,8 @@ export interface Story {
   /** True for fabricated fixtures. The prototype accepts no real testimony. */
   fixture: boolean;
   sessionId: string;
+  /** Sets the prompts, sample stories and the label burned into cards and plain-background videos. */
+  storyType: StoryType;
   ageGate: AgeGate;
   /**
    * Simulated guardian decision that unlocks capture for "under-18" and

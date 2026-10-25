@@ -6,7 +6,7 @@ import type { Messages } from "./index";
 
 const esLatam: Messages = {
   common: {
-    appName: "Cuenta tu bautismo",
+    appName: "Cuenta tu historia",
     continue: "Continuar",
     back: "Atrás",
     startOver: "Empezar de nuevo",
@@ -29,7 +29,7 @@ const esLatam: Messages = {
   },
   welcome: {
     title: "Cuenta tu historia. Elige qué compartir.",
-    lead: "Di o escribe unas palabras sobre tu bautismo, revísalas y decide quién recibe el resultado. Una historia corta es suficiente, y guardarla para ti también es una buena decisión.",
+    lead: "Di o escribe unas palabras, revísalas y decide quién recibe el resultado. Una historia corta es suficiente, y guardarla para ti también es una buena decisión.",
     stepsTitle: "Cómo funciona",
     steps: [
       "Cuéntala a tu manera, escrita o hablada",
@@ -41,6 +41,18 @@ const esLatam: Messages = {
     earlierBody: (time: string) => `Este navegador empezó una historia a las ${time}. La aplicación la guarda durante 12 horas como máximo, a menos que la borres.`,
     earlierContinue: "Continuarla",
     earlierDelete: "Borrarla",
+  },
+  paths: {
+    title: "¿Qué te gustaría compartir?",
+    baptism: {
+      title: "Mi historia de bautismo",
+      body: "Qué te llevó a bautizarte y cómo fue ese momento.",
+    },
+    testimony: {
+      title: "Mi testimonio",
+      body: "Cómo eras antes de conocer a Cristo, cómo llegaste a ser cristiano/a y qué ha cambiado desde entonces.",
+    },
+    sharing: (name: string) => `Vas a compartir: ${name}`,
   },
   age: {
     title: "¿Tienes 18 años o más?",
@@ -85,11 +97,18 @@ const esLatam: Messages = {
   write: {
     title: "Cuenta tu historia",
     lead: "Responde cualquiera de estas preguntas, o ninguna. Una respuesta corta es suficiente. No necesitas una historia dramática, tener certeza ni responder todo.",
-    prompts: [
-      "¿Qué te gustaría compartir sobre tu vida antes de bautizarte?",
-      "¿Qué te llevó a elegir el bautismo?",
-      "¿Cómo fue ese momento y qué te gustaría que otras personas supieran?",
-    ],
+    prompts: {
+      baptism: [
+        { question: "¿Qué te gustaría compartir sobre tu vida antes de bautizarte?" },
+        { question: "¿Qué te llevó a elegir el bautismo?" },
+        { question: "¿Cómo fue ese momento y qué te gustaría que otras personas supieran?" },
+      ],
+      testimony: [
+        { question: "Cómo eras antes de conocer a Cristo", hint: "Tus acciones y actitudes de antes" },
+        { question: "Qué pasó para que cambiaras", hint: "Cómo llegaste a ser cristiano/a" },
+        { question: "Qué ha cambiado desde que conociste a Cristo", hint: "Tus acciones y actitudes de hoy" },
+      ],
+    },
     ownWay: "Prefiero contarla a mi manera",
     usePrompts: "Mostrar las preguntas",
     ownWayLabel: "Tu historia",
@@ -396,6 +415,9 @@ const esLatam: Messages = {
     reset: "Vaciar buzón",
     refresh: "Actualizar",
     voice: { recorded: "Voz grabada", synthetic: "Voz sintética", none: "Sin voz" },
+    storyType: { baptism: "Historia de bautismo", testimony: "Testimonio" },
+    filterLabel: "Mostrar",
+    filterAll: "Todo",
   },
 };
 

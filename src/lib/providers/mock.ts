@@ -25,8 +25,8 @@ const PLACEHOLDER_TRANSCRIPTS: Record<LanguageId, string> = {
 export const mockProvider: LanguageProvider = {
   name: "mock",
 
-  async transcribe({ durationMs, language, sttLocale, scriptText }: TranscribeInput): Promise<Transcript> {
-    const text = scriptText?.trim() || fixtureFor(language, sttLocale)?.text || PLACEHOLDER_TRANSCRIPTS[language];
+  async transcribe({ durationMs, language, sttLocale, scriptText, storyType }: TranscribeInput): Promise<Transcript> {
+    const text = scriptText?.trim() || fixtureFor(language, sttLocale, storyType)?.text || PLACEHOLDER_TRANSCRIPTS[language];
     const locale = LANGUAGES[language].uiLocale;
     const sentences = splitSentences(text, locale);
     const span = Math.max(durationMs, 1000);

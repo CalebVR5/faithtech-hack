@@ -6,7 +6,7 @@ import { ApiError, api, type AssetState, type StoryView } from "@/lib/client/api
 import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
 import { needsGuardian } from "@/lib/domain/policy";
 import type { Box } from "@/lib/domain/face-cover";
-import type { NarrationMode, OutputKind, Segment, Transcript } from "@/lib/domain/types";
+import type { NarrationMode, OutputKind, Segment, StoryType, Transcript } from "@/lib/domain/types";
 
 // Unsaved drafts live in memory only (plan section 6): nothing here is written
 // to browser storage. The provider sits in the root layout so a visit to the
@@ -15,6 +15,7 @@ import type { NarrationMode, OutputKind, Segment, Transcript } from "@/lib/domai
 
 export type Step =
   | "welcome"
+  | "age"
   | "guardian"
   | "capture"
   | "write"
@@ -55,6 +56,8 @@ export type CloudPurpose = "transcription" | "translation" | "narration";
 export interface FlowState {
   step: Step;
   history: Step[];
+  /** The path chosen on the welcome screen or by the page's address, until the story exists to hold it. */
+  storyType: StoryType | null;
   story: StoryView | null;
   answers: [string, string, string];
   ownWay: boolean;
@@ -75,6 +78,7 @@ export interface FlowState {
 const INITIAL: FlowState = {
   step: "welcome",
   history: [],
+  storyType: null,
   story: null,
   answers: ["", "", ""],
   ownWay: false,
@@ -169,7 +173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         : INITIAL.choices;
     setFlow((s) => {
       if (s.pending) URL.revokeObjectURL(s.pending.audioUrl);
-      return { ...INITIAL, story, step, choices, history: ["welcome"] };
+      return { ...INITIAL, story, storyType: story.storyType, step, choices, history: ["welcome"] };
     });
   }, []);
 

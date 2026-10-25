@@ -1,5 +1,5 @@
 import { isLanguageId } from "@/lib/domain/languages";
-import type { AgeGate, Story } from "@/lib/domain/types";
+import { isStoryType, type AgeGate, type Story } from "@/lib/domain/types";
 import { handleRouteError, json, jsonError } from "@/lib/server/http";
 import { getOrCreateSessionId, getSessionId } from "@/lib/server/session";
 import { db, newId, STORY_TTL_MS, storyView, sweepStories } from "@/lib/server/store";
@@ -26,13 +26,15 @@ export async function GET() {
   }
 }
 
-// Starts a story once the age question is answered (plan section 3). No name,
-// contact details or date of birth: just the answer and language choices.
+// Starts a story once the path is chosen and the age question is answered
+// (plan section 3). No name, contact details or date of birth: just those
+// answers and language choices.
 export async function POST(request: Request) {
   try {
     const sessionId = await getOrCreateSessionId(request);
     const body = await request.json().catch(() => null);
-    const { ageGate, interfaceLanguage } = body ?? {};
+    const { storyType, ageGate, interfaceLanguage } = body ?? {};
+    if (!isStoryType(storyType)) return jsonError(400, "Choose a baptism story or a testimony.", "story-type-unanswered");
     if (!AGE_ANSWERS.includes(ageGate)) return jsonError(400, "Please answer the age question.", "age-unanswered");
     if (!isLanguageId(interfaceLanguage)) return jsonError(400, "Choose a language.");
 
@@ -41,6 +43,7 @@ export async function POST(request: Request) {
       id: newId(),
       fixture: false,
       sessionId,
+      storyType,
       ageGate,
       guardianCapture: ageGate === "adult" ? "not-needed" : "pending",
       interfaceLanguage,

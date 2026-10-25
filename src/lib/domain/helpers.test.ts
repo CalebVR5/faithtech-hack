@@ -55,6 +55,12 @@ describe("findIdentifyingDetails", () => {
     expect(findIdentifyingDetails("Nothing dramatic happened. I kept showing up on Sundays.", "en")).toEqual([]);
   });
 
+  it("doesn't flag the names of God or the Bible in any language", () => {
+    expect(findIdentifyingDetails("I gave my life to Jesus Christ and read the Bible.", "en")).toEqual([]);
+    expect(findIdentifyingDetails("Le entregué mi vida a Cristo, el Señor.", "es-419")).toEqual([]);
+    expect(findIdentifyingDetails("Hoje eu leio a Bíblia e confio no Senhor.", "pt-BR")).toEqual([]);
+  });
+
   it("uses the story's language", () => {
     const kinds = findIdentifyingDetails("Un amigo de la universidad me invitó.", "es-419").map((f) => f.kind);
     expect(kinds).toContain("place-or-group");

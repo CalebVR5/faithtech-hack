@@ -7,10 +7,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LANGUAGES, isLanguageId } from "@/lib/domain/languages";
-import type { MockSubmission, NarrationMode, OutputKind } from "@/lib/domain/types";
+import { STORY_TYPES, type MockSubmission, type NarrationMode, type OutputKind, type StoryType } from "@/lib/domain/types";
 
 interface InboxItem extends MockSubmission {
   kind: OutputKind;
+  storyType: StoryType;
   mimeType: string;
   assetText: string;
   language: string;
@@ -28,6 +29,8 @@ export default function InboxPage() {
   const [locked, setLocked] = useState(false);
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<StoryType | "all">("all");
+  const shown = items?.filter((item) => filter === "all" || item.storyType === filter);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/inbox", { cache: "no-store" });
@@ -103,11 +106,25 @@ export default function InboxPage() {
               {t.inbox.reset}
             </Button>
           </div>
-          {items.length === 0 && <p className="text-muted-foreground">{t.inbox.empty}</p>}
+          <div role="group" aria-label={t.inbox.filterLabel} className="flex flex-wrap gap-2">
+            {(["all", ...STORY_TYPES] as const).map((f) => (
+              <Button
+                key={f}
+                variant="outline"
+                aria-pressed={filter === f}
+                className="h-10 aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-river-deep"
+                onClick={() => setFilter(f)}
+              >
+                {f === "all" ? t.inbox.filterAll : t.inbox.storyType[f]}
+              </Button>
+            ))}
+          </div>
+          {shown?.length === 0 && <p className="text-muted-foreground">{t.inbox.empty}</p>}
           <ul className="flex flex-col gap-4">
-            {items.map((item) => (
+            {shown?.map((item) => (
               <li key={item.id} className="flex flex-col gap-3 rounded-xl border bg-card p-4">
                 <div className="flex flex-wrap items-center gap-2">
+                  <Badge>{t.inbox.storyType[item.storyType]}</Badge>
                   <Badge variant="secondary">{t.inbox.scope}</Badge>
                   <Badge variant="outline">{t.inbox.voice[item.narration]}</Badge>
                   {item.machineTranslated && <Badge variant="outline">{t.inbox.machineTranslated}</Badge>}

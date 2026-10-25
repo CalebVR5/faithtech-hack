@@ -1,6 +1,6 @@
 import type { LanguageId } from "@/lib/domain/languages";
 import type { TimedWord } from "@/lib/domain/timing";
-import type { Transcript } from "@/lib/domain/types";
+import type { StoryType, Transcript } from "@/lib/domain/types";
 
 // The three managed-API operations (plan section 7). Story text and media are
 // passed as data; nothing a provider returns is allowed to grant a permission.
@@ -18,6 +18,8 @@ export interface TranscribeInput {
    * always follow what was actually said.
    */
   scriptText?: string;
+  /** Mock only: picks a sample from the same path to stand in for the recording. */
+  storyType?: StoryType;
 }
 
 export interface TranslateInput {
