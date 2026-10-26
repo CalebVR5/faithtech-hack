@@ -52,20 +52,17 @@ export const api = {
   updateStory: (id: string, body: Record<string, unknown>) =>
     request<{ story: StoryView }>("PATCH", `/api/stories/${id}`, body),
   deleteStory: (id: string) => request<void>("DELETE", `/api/stories/${id}`),
-  guardianCapture: (id: string, decision: string) =>
-    request<{ story: StoryView }>("POST", `/api/stories/${id}/guardian`, { decision }),
   transcribe: (form: FormData) => request<TranscribeResult>("POST", "/api/transcribe", form),
   render: (body: Record<string, unknown>) => request<AssetState>("POST", "/api/render", body),
   approve: (body: { assetId: string; assetVersion: number; purpose: string; decision: string }) =>
     request<AssetState>("POST", "/api/approve", body),
-  guardianAsset: (body: { assetId: string; assetVersion: number; purpose: string; decision: string }) =>
-    request<AssetState>("POST", "/api/guardian-simulation", body),
-  submitToInbox: (assetId: string, idempotencyKey: string) =>
-    request<AssetState>("POST", "/api/mock-submissions", { assetId, idempotencyKey }),
-  withdrawSubmission: (id: string) => request<void>("DELETE", `/api/mock-submissions/${id}`),
   assetState: (id: string) => request<AssetState>("GET", `/api/assets/${id}?state=1`),
 
-  /** The only way an output leaves the app; the server checks approval first. */
+  /**
+   * The only way an output leaves the app; the server checks approval first.
+   * The server deletes the story as it hands the file over, so the returned
+   * file is the only copy left.
+   */
   async exportAsset(assetId: string): Promise<Blob> {
     const res = await fetch("/api/export", {
       method: "POST",

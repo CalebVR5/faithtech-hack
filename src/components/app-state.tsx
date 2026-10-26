@@ -4,19 +4,20 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { MESSAGES, type Messages } from "@/i18n";
 import { ApiError, api, type AssetState, type StoryView } from "@/lib/client/api";
 import { LANGUAGES, type LanguageId } from "@/lib/domain/languages";
-import { needsGuardian } from "@/lib/domain/policy";
 import type { Box } from "@/lib/domain/face-cover";
 import type { NarrationMode, OutputKind, Segment, StoryType, Transcript } from "@/lib/domain/types";
 
 // Unsaved drafts live in memory only (plan section 6): nothing here is written
 // to browser storage. The provider sits in the root layout so a visit to the
 // privacy page doesn't lose the draft. After a reload, the welcome screen finds
-// this session's earlier stories on the server so they can be continued or deleted.
+// this session's unfinished stories on the server so they can be continued or
+// deleted before they expire.
 
 export type Step =
   | "welcome"
   | "age"
-  | "guardian"
+  /** Answered "under 18": the service is for adults, and nothing was saved. */
+  | "adults-only"
   | "capture"
   | "write"
   | "record"
@@ -73,6 +74,8 @@ export interface FlowState {
   asset: AssetState | null;
   /** Choices + story version the current preview was made from. */
   renderedKey: string | null;
+  /** The file was handed over and the server deleted the story; only this browser's copies remain. */
+  serverCopyDeleted: boolean;
 }
 
 const INITIAL: FlowState = {
@@ -99,6 +102,7 @@ const INITIAL: FlowState = {
   videoNotice: false,
   asset: null,
   renderedKey: null,
+  serverCopyDeleted: false,
 };
 
 interface AppContextValue {
@@ -159,12 +163,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /** Picks up a story this session started earlier, at the first step it still needs. */
   const resume = useCallback((story: StoryView) => {
     setUiState(story.interfaceLanguage);
-    const step: Step =
-      needsGuardian(story) && story.guardianCapture !== "approved-in-simulation"
-        ? "guardian"
-        : story.reviewedText.trim()
-          ? "review"
-          : "capture";
+    const step: Step = story.reviewedText.trim() ? "review" : "capture";
     // Start from the format that fits how the story was told: their own video, their voice, or a card.
     const choices: OutputChoices = story.take?.videoRef
       ? { ...INITIAL.choices, kind: "captioned-video" }

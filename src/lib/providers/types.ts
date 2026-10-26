@@ -13,7 +13,7 @@ export interface TranscribeInput {
   language: LanguageId;
   sttLocale: string;
   /**
-   * Mock only: the script shown while a take was recorded, so offline demos
+   * Mock only: the script shown while a take was recorded, so offline development
    * transcribe something coherent. Real providers must ignore it; captions
    * always follow what was actually said.
    */

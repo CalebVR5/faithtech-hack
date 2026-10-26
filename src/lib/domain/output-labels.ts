@@ -1,6 +1,6 @@
 // Text burned into exported cards and videos, in the output's language so the
-// audience can read it. Drafted for the prototype; human review of these
-// translations is deferred with the rest of language review (revision 4).
+// audience can read it. Drafted translations; human review of these
+// is needed with the rest of language review before launch.
 
 import type { LanguageId } from "./languages";
 import type { OutputKind, StoryType } from "./types";

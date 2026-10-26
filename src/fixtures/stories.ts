@@ -1,17 +1,17 @@
-// FABRICATED TEST DATA. The baptism samples are the hackathon's "Sample raw
-// testimonies (all made up)"; the testimony samples were written for this
-// project in the same spirit. None of it is real testimony or a real church
-// record. Text is kept verbatim, including filler words and apologies, because
-// faithfully handling raw speech is what these samples test.
+// FABRICATED TEST DATA for unit tests and the development-only mock
+// transcription; never shown to storytellers. The baptism samples are the
+// hackathon's "Sample raw testimonies (all made up)"; the testimony samples
+// were written in the same spirit. None of it is real testimony or a real
+// church record. Text is kept verbatim, including filler words and apologies,
+// because faithfully handling raw speech is what these samples test.
 
 import type { LanguageId } from "@/lib/domain/languages";
 import type { StoryType } from "@/lib/domain/types";
 
 export interface StoryFixture {
   id: string;
-  /** Only offered on this path, so a sample never carries the other path's label. */
+  /** Mock transcription only returns a sample from the story's own path. */
   storyType: StoryType;
-  /** Shown in the sample picker. */
   title: string;
   language: LanguageId;
   /** Transcription locale used when this sample stands in for a recording. */

@@ -7,7 +7,7 @@ import path from "node:path";
 import ffmpegStatic from "ffmpeg-static";
 import { wavDurationMs } from "@/lib/media/wav";
 
-// Resolution order keeps the demo portable across macOS and Windows:
+// Resolution order keeps it portable across macOS, Windows and Linux:
 // FFMPEG_PATH override → ffmpeg-static's bundled binary → ffmpeg on PATH.
 export function ffmpegPath(): string {
   return process.env.FFMPEG_PATH || ffmpegStatic || "ffmpeg";

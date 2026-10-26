@@ -1,4 +1,3 @@
-import { STORY_FIXTURES } from "@/fixtures/stories";
 import { isLanguageId, LANGUAGES } from "@/lib/domain/languages";
 import { alignWords, sentencesFromWords } from "@/lib/domain/timing";
 import { MAX_STORY_CHARS } from "@/lib/domain/limits";
@@ -89,20 +88,9 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/stories/[i
     const privacy = parsePrivacy(body.privacy);
     if (privacy) story.privacy = privacy;
 
-    const touchesContent = ["sourceLanguage", "reviewedText", "fixtureId", "displayName", "take"].some((k) => k in body);
+    const touchesContent = ["sourceLanguage", "reviewedText", "displayName", "take"].some((k) => k in body);
     if (touchesContent) requireCapture(story);
 
-    if ("fixtureId" in body) {
-      // A baptism sample in a testimony (or the reverse) would carry the wrong label.
-      const fixture = STORY_FIXTURES.find((f) => f.id === body.fixtureId && f.storyType === story.storyType);
-      if (!fixture) throw new RequestError(400, "bad-fixture", "Unknown sample story.");
-      story.fixture = true;
-      story.reviewedText = fixture.text;
-      story.sourceLanguage = fixture.language;
-      story.sourceKind = "text";
-      story.take = undefined;
-      contentChanged = true;
-    }
     if (isLanguageId(body.sourceLanguage) && body.sourceLanguage !== story.sourceLanguage) {
       story.sourceLanguage = body.sourceLanguage;
       contentChanged = true;

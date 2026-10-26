@@ -2,31 +2,18 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import type { TimedWord } from "@/lib/domain/timing";
-import type { Asset, Consent, ConsentPurpose, GuardianState, MockSubmission, Story } from "@/lib/domain/types";
+import type { Asset, Consent, Story } from "@/lib/domain/types";
+import { STORY_TTL_MS } from "@/lib/domain/limits";
 import { deleteFile, ownsFile } from "./temp-store";
 
-// In-memory records for a single-process demo (plan section 7, "Prototype
-// hosting and storage"). Everything resets when the server restarts, and the
-// UI and privacy page say so. Swap for a shared store before running more than
-// one process.
+// Working memory for stories in progress, never a database. Nothing is kept
+// for later: a story and everything made from it are deleted as soon as the
+// finished file is downloaded, when the person deletes it, or at the latest
+// STORY_TTL_MS after it started. It also all disappears if the server
+// restarts. One server instance holds a story, so deploy with session
+// affinity (or a single instance) rather than adding shared storage.
 
-/** Stories older than the session cookie are dropped. */
-export const STORY_TTL_MS = 12 * 60 * 60 * 1000;
-
-export interface InboxEntry {
-  submission: MockSubmission;
-  /** Copy of the approved asset only. Raw recordings and the full story never go to the inbox. */
-  file: Buffer;
-  mimeType: string;
-  kind: Asset["spec"]["kind"];
-  storyType: Story["storyType"];
-  /** Words visible or audible in the asset, for accessibility. */
-  assetText: string;
-  language: string;
-  machineTranslated: boolean;
-  narration: Asset["spec"]["narration"];
-  guardianRequired: boolean;
-}
+export { STORY_TTL_MS };
 
 interface SynthCacheEntry {
   audioRef: string;
@@ -37,7 +24,7 @@ interface SynthCacheEntry {
 }
 
 /**
- * What the speech service heard in a kept recording, with word times. Saved
+ * What the speech service heard in a kept recording, with word times. Held
  * on the server so a reviewed transcript is always aligned against the real
  * recording, never against timings sent by the browser.
  */
@@ -55,11 +42,9 @@ interface Db {
   stories: Map<string, Story>;
   assets: Map<string, Asset>;
   consents: Consent[];
-  inbox: Map<string, InboxEntry>;
   synthCache: Map<string, SynthCacheEntry>;
   /** Keyed by the take's audioRef. */
   heard: Map<string, HeardTake>;
-  inboxTokens: Set<string>;
 }
 
 const g = globalThis as unknown as { __testimonyDb?: Db };
@@ -67,16 +52,9 @@ export const db: Db = (g.__testimonyDb ??= {
   stories: new Map(),
   assets: new Map(),
   consents: [],
-  inbox: new Map(),
   synthCache: new Map(),
   heard: new Map(),
-  inboxTokens: new Set(),
 });
-// Older dev-server instances created the store before `heard` existed, and
-// before the testimony path, when every story was a baptism story.
-db.heard ??= new Map();
-for (const s of db.stories.values()) s.storyType ??= "baptism";
-for (const e of db.inbox.values()) e.storyType ??= "baptism";
 
 export function newId(): string {
   return randomUUID();
@@ -119,7 +97,6 @@ export function recordConsent(input: Omit<Consent, "id" | "decidedAt">): Consent
       c.assetId === input.assetId &&
       c.assetVersion === input.assetVersion &&
       c.purpose === input.purpose &&
-      c.recipient === input.recipient &&
       c.revokedAt === undefined
     ) {
       c.revokedAt = Date.now();
@@ -130,38 +107,7 @@ export function recordConsent(input: Omit<Consent, "id" | "decidedAt">): Consent
   return consent;
 }
 
-export function setGuardianDecision(
-  assetId: string,
-  assetVersion: number,
-  purpose: ConsentPurpose,
-  decision: GuardianState,
-): Consent | null {
-  const consent = db.consents.find(
-    (c) =>
-      c.assetId === assetId &&
-      c.assetVersion === assetVersion &&
-      c.purpose === purpose &&
-      c.decision === "granted" &&
-      c.revokedAt === undefined,
-  );
-  if (!consent) return null;
-  consent.guardian = decision;
-  return consent;
-}
-
-export function submissionsFor(storyId: string): MockSubmission[] {
-  return [...db.inbox.values()].map((e) => e.submission).filter((s) => s.storyId === storyId);
-}
-
-export function withdrawSubmission(entry: InboxEntry): void {
-  entry.submission.state = "withdrawn";
-  entry.submission.withdrawnAt = Date.now();
-  // Withdrawal removes the copy the app controls; it can't recall downloads.
-  entry.file = Buffer.alloc(0);
-  entry.assetText = "";
-}
-
-/** Removes everything the app controls for a story. Downloads and shares already made can't be recalled. */
+/** Removes everything the app holds for a story. Downloads and shares already made can't be recalled. */
 export async function deleteStory(storyId: string): Promise<void> {
   const story = db.stories.get(storyId);
   if (!story) return;
@@ -183,11 +129,8 @@ export async function deleteStory(storyId: string): Promise<void> {
     }
   }
   for (const ref of refs) db.heard.delete(ref);
-  const now = Date.now();
-  for (const c of db.consents) if (c.storyId === storyId && c.revokedAt === undefined) c.revokedAt = now;
-  for (const entry of db.inbox.values()) {
-    if (entry.submission.storyId === storyId && entry.submission.state !== "withdrawn") withdrawSubmission(entry);
-  }
+  // Approvals go too: nothing about the story is kept once it's gone.
+  db.consents = db.consents.filter((c) => c.storyId !== storyId);
   db.stories.delete(storyId);
   await Promise.all([...refs].map((id) => deleteFile(id).catch(() => undefined)));
 }

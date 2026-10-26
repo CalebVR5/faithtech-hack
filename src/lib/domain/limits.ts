@@ -1,4 +1,4 @@
-// Prototype bounds. The plan proposed 90s; capped at 60s so a recording fits a
+// Bounds. The plan proposed 90s; capped at 60s so a recording fits a
 // single synchronous Speech-to-Text request (inline audio is limited to ~1 min).
 export const MAX_RECORDING_SECONDS = 60;
 export const MAX_STORY_CHARS = 1500;
@@ -8,6 +8,11 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 // Raw uploads and derived audio expire after one hour (plan section 6).
 export const TEMP_FILE_TTL_MS = 60 * 60 * 1000;
+
+// Nothing is stored for later. A story is deleted when its finished file is
+// downloaded, and at the latest this long after it started. The privacy
+// policy and session cookie use the same figure.
+export const STORY_TTL_MS = 2 * 60 * 60 * 1000;
 
 export const ACCEPTED_AUDIO_TYPES = [
   "audio/webm",

@@ -5,8 +5,14 @@
       "name": "dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "dev (mock, for npm run smoke)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3000,
-      "env": { "LANGUAGE_PROVIDER": "mock", "INBOX_PASSCODE": "demo-inbox" }
+      "env": { "LANGUAGE_PROVIDER": "mock" }
     }
   ]
 }

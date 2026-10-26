@@ -10,14 +10,15 @@ import { api } from "@/lib/client/api";
 /**
  * Asks whether to delete the current story before starting another, so it
  * isn't left on the server by accident. A kept story can be found again from
- * the start screen until it expires.
+ * the start screen until it expires. Once the file was handed over the server
+ * copy is already gone, so there's nothing to ask.
  */
 export function NewStoryButton() {
   const { t, flow, reset, errorText } = useApp();
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const story = flow.story;
+  const story = flow.serverCopyDeleted ? null : flow.story;
 
   const deleteAndStart = async () => {
     if (!story) return reset("welcome");
@@ -64,7 +65,7 @@ export function DeleteStory() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const story = flow.story;
-  if (!story) return null;
+  if (!story || flow.serverCopyDeleted) return null;
 
   const remove = async () => {
     setBusy(true);

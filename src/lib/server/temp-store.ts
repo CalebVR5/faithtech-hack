@@ -1,16 +1,17 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { TEMP_FILE_TTL_MS } from "@/lib/domain/limits";
 
-// Private, session-owned, expiring media storage for a single-process local
-// demo. Files live under the OS temp directory (works on macOS and Windows);
-// metadata lives in memory, so a server restart orphans files until the OS
-// cleans its temp folder. Swap for a shared store if the app ever runs on
-// more than one process.
+// Private, session-owned, expiring working files: recordings, converted audio
+// and rendered outputs while a story is in progress. Never a lasting store.
+// Files live under the OS temp directory (works on macOS and Windows, and is
+// in memory on Cloud Run); their records live in memory. A restarted process
+// has no record of earlier files, so it deletes them before storing anything:
+// a restart deletes everything, as the Privacy Policy says.
 
 const ROOT = path.join(tmpdir(), "testimony-media");
 
@@ -26,6 +27,28 @@ export interface StoredFile {
 const globalStore = globalThis as unknown as { __tempFiles?: Map<string, StoredFile> };
 const files = (globalStore.__tempFiles ??= new Map<string, StoredFile>());
 
+/**
+ * Files older than this process were left by an earlier one (a restart), and
+ * nothing records them any more. Judged by age rather than a once-only flag:
+ * the dev server can evaluate this module more than once, and a second sweep
+ * must never touch files this process wrote.
+ */
+const PROCESS_STARTED_AT = Date.now() - process.uptime() * 1000;
+let leftoversCleared: Promise<void> | null = null;
+function clearLeftovers(): Promise<void> {
+  return (leftoversCleared ??= readdir(ROOT)
+    .catch(() => [] as string[])
+    .then(async (names) => {
+      await Promise.all(
+        names.map(async (name) => {
+          const p = path.join(ROOT, name);
+          const info = await stat(p).catch(() => null);
+          if (info && info.mtimeMs < PROCESS_STARTED_AT) await rm(p, { recursive: true, force: true });
+        }),
+      );
+    }));
+}
+
 function filePath(id: string): string {
   // ids are server-generated UUIDs; reject anything else before touching disk.
   if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("Invalid file id");
@@ -33,6 +56,7 @@ function filePath(id: string): string {
 }
 
 export async function putFile(sessionId: string, data: Buffer, mimeType: string): Promise<StoredFile> {
+  await clearLeftovers();
   await sweepExpired();
   await mkdir(ROOT, { recursive: true });
   const now = Date.now();

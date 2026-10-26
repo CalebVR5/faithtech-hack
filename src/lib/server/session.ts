@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
+import { STORY_TTL_MS } from "@/lib/domain/limits";
 
 const COOKIE = "sid";
 
@@ -21,7 +22,8 @@ export async function getOrCreateSessionId(request: Request): Promise<string> {
     sameSite: "lax",
     secure: new URL(request.url).protocol === "https:",
     path: "/",
-    maxAge: 60 * 60 * 12,
+    // Lasts only as long as a story can (STORY_TTL_MS).
+    maxAge: STORY_TTL_MS / 1000,
   });
   return id;
 }

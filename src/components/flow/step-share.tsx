@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, Download, MessageCircle, Share2 } from "lucide-react";
+import { Camera, Download, MessageCircle, Share2, ShieldCheck } from "lucide-react";
 import { useApp } from "@/components/app-state";
 import { DeleteStory, NewStoryButton } from "@/components/flow/delete-story";
 import { ErrorNote } from "@/components/flow/steps-start";
@@ -19,7 +19,7 @@ const toggleClass =
 const saveLinkClass = "inline-flex items-center gap-2 rounded-lg font-medium";
 
 export function ShareStep() {
-  const { t, flow, errorText } = useApp();
+  const { t, flow, update, errorText } = useApp();
   const asset = flow.asset!.asset;
   const [file, setFile] = useState<{ file: File; url: string } | null>(null);
   const [destination, setDestination] = useState<Destination>("whatsapp");
@@ -36,6 +36,8 @@ export function ShareStep() {
     setError(null);
     try {
       const blob = await api.exportAsset(asset.id);
+      // The server deleted the story as it handed this over; this browser's copy is now the only one.
+      update({ serverCopyDeleted: true });
       const name = exportFilename(flow.story?.storyType ?? "baptism", asset.spec.kind);
       const f = new File([blob], name, { type: blob.type || asset.mimeType });
       setFile({ file: f, url: URL.createObjectURL(f) });
@@ -75,7 +77,8 @@ export function ShareStep() {
   ];
 
   return (
-    <StepShell title={t.share.title} lead={t.share.lead}>
+    // No Back: the story behind this file no longer exists on the server.
+    <StepShell title={t.share.title} lead={t.share.lead} showBack={!flow.serverCopyDeleted}>
       {!file ? (
         busy || !error ? (
           <p aria-live="polite" className="text-muted-foreground">
@@ -153,9 +156,17 @@ export function ShareStep() {
       )}
       {error && <ErrorNote message={error} />}
 
-      <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row sm:justify-between">
-        <DeleteStory />
-        <NewStoryButton />
+      <div className="flex flex-col gap-4 border-t pt-6">
+        {flow.serverCopyDeleted && (
+          <p className="flex items-start gap-2 rounded-lg bg-secondary p-3">
+            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+            {t.share.removed}
+          </p>
+        )}
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+          <DeleteStory />
+          <NewStoryButton />
+        </div>
       </div>
     </StepShell>
   );

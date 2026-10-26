@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ShieldCheck, ShieldX, Sunrise, UserRound, Waves } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Sunrise, Waves } from "lucide-react";
 import { useApp } from "@/components/app-state";
-import { DeleteStory } from "@/components/flow/delete-story";
 import { EarlierStories } from "@/components/flow/earlier-stories";
 import { bigButton, OptionButton, StepNumber, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client/api";
-import { STORY_TYPES, type AgeGate, type StoryType } from "@/lib/domain/types";
+import { STORY_TYPES, type StoryType } from "@/lib/domain/types";
 
 const PATH_ICONS: Record<StoryType, React.ReactNode> = {
   baptism: <Waves />,
@@ -80,7 +80,23 @@ export function WelcomeStep() {
   );
 }
 
-/** The age question starts the story (plan section 3: no story content before it). */
+/**
+ * "{terms}" and "{privacy}" in a translated sentence become links, so each
+ * language keeps its own word order.
+ */
+function LegalNotice({ text }: { text: string }) {
+  const { t } = useApp();
+  const links: Record<string, React.ReactNode> = {
+    "{terms}": <Link key="terms" href="/terms" className="font-medium text-primary underline underline-offset-4">{t.legal.termsTitle}</Link>,
+    "{privacy}": <Link key="privacy" href="/privacy" className="font-medium text-primary underline underline-offset-4">{t.legal.privacyTitle}</Link>,
+  };
+  return <p className="text-sm text-muted-foreground">{text.split(/(\{terms\}|\{privacy\})/).map((part) => links[part] ?? part)}</p>;
+}
+
+/**
+ * The age answer starts the story (plan section 3: no story content before
+ * it). The service is for adults only; nothing is created for anyone else.
+ */
 export function AgeStep() {
   const { t, ui, flow, update, go, errorText } = useApp();
   const [busy, setBusy] = useState(false);
@@ -88,13 +104,13 @@ export function AgeStep() {
   const storyType = flow.storyType;
   if (!storyType) return null;
 
-  const answer = async (ageGate: AgeGate) => {
+  const start = async () => {
     setBusy(true);
     setError(null);
     try {
-      const { story } = await api.createStory({ storyType, ageGate, interfaceLanguage: ui });
+      const { story } = await api.createStory({ storyType, ageGate: "adult", interfaceLanguage: ui });
       update({ story });
-      go(ageGate === "adult" ? "capture" : "guardian");
+      go("capture");
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -113,64 +129,32 @@ export function AgeStep() {
         </>
       }
     >
+      <p className="rounded-lg bg-secondary p-3">{t.age.privacy}</p>
       <div className="flex flex-col gap-3">
-        <OptionButton title={t.age.adult} onClick={() => answer("adult")} disabled={busy} />
-        <OptionButton title={t.age.minor} onClick={() => answer("under-18")} disabled={busy} />
+        <OptionButton title={t.age.adult} onClick={start} disabled={busy} />
+        <OptionButton title={t.age.minor} onClick={() => go("adults-only")} disabled={busy} />
+        <LegalNotice text={t.age.legal} />
       </div>
       {error && <ErrorNote message={error} />}
-      {/* Someone arriving by a direct link skips the welcome screen, so their earlier story shows here too. */}
+      {/* Someone arriving by a direct link skips the welcome screen, so their unfinished story shows here too. */}
       <EarlierStories />
     </StepShell>
   );
 }
 
-export function GuardianStep() {
-  const { t, flow, update, go, errorText } = useApp();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const story = flow.story;
-  if (!story) return null;
-
-  const decide = async (decision: "approved-in-simulation" | "declined") => {
-    setBusy(true);
-    setError(null);
-    try {
-      const { story: updated } = await api.guardianCapture(story.id, decision);
-      update({ story: updated });
-      if (decision === "approved-in-simulation") go("capture");
-    } catch (err) {
-      setError(errorText(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (story.guardianCapture === "declined") {
-    return (
-      <StepShell title={t.guardian.declinedTitle} lead={t.guardian.declinedBody} showBack={false}>
-        <DeleteStory />
-      </StepShell>
-    );
-  }
-
+/** Shown after "No, I'm under 18". No story was created and nothing was sent. */
+export function AdultsOnlyStep() {
+  const { t, reset } = useApp();
   return (
-    <StepShell title={t.guardian.title} lead={t.guardian.body}>
-      <div className="flex flex-col gap-4 rounded-xl border-2 border-dashed border-primary/50 bg-card p-4">
-        <h2 className="flex items-center gap-2 font-semibold">
-          <UserRound className="size-5" aria-hidden /> {t.guardian.simTitle}
-        </h2>
-        <p className="text-sm text-muted-foreground">{t.guardian.simBody}</p>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button className={bigButton} onClick={() => decide("approved-in-simulation")} disabled={busy}>
-            <ShieldCheck aria-hidden /> {t.guardian.approve}
-          </Button>
-          <Button variant="outline" className={bigButton} onClick={() => decide("declined")} disabled={busy}>
-            <ShieldX aria-hidden /> {t.guardian.decline}
-          </Button>
-        </div>
-      </div>
-      {error && <ErrorNote message={error} />}
-    </StepShell>
+    <StepShell
+      title={t.adultsOnly.title}
+      lead={t.adultsOnly.body}
+      actions={
+        <Button variant="outline" className={bigButton} onClick={() => reset("welcome")}>
+          {t.adultsOnly.back}
+        </Button>
+      }
+    />
   );
 }
 

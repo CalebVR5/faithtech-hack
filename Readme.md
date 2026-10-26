@@ -1,11 +1,8 @@
-# Note for Baptize the World Compatibility
-This application could be easily deployed using Vercel to line up with Baptize the World's tech stack, while still utilizing Google Cloud APIs for translation, text-to-speech, and speech-to-text which are relatively easy to set up, just requiring a fresh google cloud project and a couple quick steps.
+# Share your story
 
-# Testimony sharing (FaithTech hackathon prototype)
+Help someone tell their baptism story or testimony in their own words, turn it into a card or short video, and download it to share however they choose.
 
-Help someone tell their baptism story in their own words, prepare something they're comfortable sharing, and choose who receives it.
-
-**Prototype rules:** fabricated stories only, no connection to baptize.org, nothing leaves the app without the storyteller's approval, and minors need guardian approval. The full plan and reasoning are in [testimony-project-plan.md](testimony-project-plan.md).
+**Built to keep nothing.** There are no accounts. A story lives only in the server's working memory and temporary files while the person makes it, and it is deleted, with every recording, transcript and output, the moment the finished file is downloaded. If that doesn't happen, it's deleted when the person taps "Delete my story", or at the latest 2 hours after they started. Nothing leaves the app without the storyteller's approval of that exact version. The service is for adults 18 and older. The original plan and reasoning are in [testimony-project-plan.md](testimony-project-plan.md).
 
 ## Quick start (macOS or Windows)
 
@@ -17,42 +14,34 @@ cp .env.example .env.local      # Windows PowerShell: Copy-Item .env.example .en
 npm run dev
 ```
 
-Open http://localhost:3000, then check http://localhost:3000/api/health. It should report `"ffmpeg": { "ok": true }` and `"provider": "mock"`.
+Open http://localhost:3000, then check http://localhost:3000/api/health. It should report `"ffmpeg": { "ok": true }` and the provider you set.
 
 | Script | What it does |
 |---|---|
 | `npm run dev` | Dev server on localhost |
 | `npm run dev:lan` | Dev server on all interfaces with a self-signed HTTPS cert (for phones on the same Wi-Fi) |
-| `npm run build` then `npm run start:lan` | Production build served to the local network |
+| `npm run build` then `npm run start` | Production build. It refuses to start without the production settings below |
 | `npm test` | Unit tests, plus real FFmpeg renders of a card and two videos |
-| `npm run smoke` | End-to-end permission checks against a running server (start `npm run dev` first) |
+| `npm run smoke` | End-to-end permission and deletion checks against a running dev server in mock mode (`LANGUAGE_PROVIDER=mock npm run dev` first) |
 | `npm run typecheck` / `npm run lint` | Static checks |
 
-All scripts are plain `next`/`vitest`/`node` commands with no shell-specific syntax, so they run the same way in macOS Terminal, Windows PowerShell and cmd. Verified on Windows 11 with Node 22.11.
+All scripts are plain `next`/`vitest`/`node` commands with no shell-specific syntax, so they run the same way in macOS Terminal, Windows PowerShell and cmd.
 
-### Demo pages
+### Pages
 
 | Page | What it is |
 |---|---|
 | `/` | The storyteller's flow, in English, French, Latin American Spanish or Brazilian Portuguese. Starts by choosing a baptism story or a testimony |
 | `/baptism` · `/testimony` | Direct links (for a church or event QR code) that start on one path; Back still leads to the choice |
-| `/privacy` | Short, truthful privacy notice for this test deployment |
-| `/inbox` | The operator's demo inbox. Needs `INBOX_PASSCODE` from `.env.local`; if unset, a random passcode is printed in the server console |
+| `/privacy` · `/terms` | The Privacy Policy and Terms of Use in all four languages (English controls), linked from every page's footer and from the age question |
 
-The fastest demo: **My baptism story (or My testimony) → Yes, 18 or older → Continue → Use a sample story → pick one → Continue → Story card → Make preview → approve → Continue to sharing**. For the guardian gate, answer "No, I'm under 18" and use the *Simulate* buttons.
+### Testing on phones
 
-### Demoing on phones
+Phone browsers only allow microphone recording on **HTTPS** pages. Use a deployed HTTPS environment, or `npm run dev:lan`, whose self-signed certificate phones ask you to accept. On Windows, allow Node through the firewall when prompted.
 
-Phone browsers only allow microphone recording on **HTTPS** pages. Pick one:
+## Language provider
 
-1. **Tunnel (recommended):** run `npm run build && npm run start`, then `cloudflared tunnel --url http://localhost:3000` (Cloudflare's cloudflared works on macOS and Windows). Phones get a trusted HTTPS URL. Traffic passes through Cloudflare; the privacy page says so.
-2. **`npm run dev:lan`:** this uses a self-signed certificate that's only trusted on the laptop, so phones show a warning you have to tap through. On Windows, allow Node through the firewall when prompted.
-
-## Language provider: mock first, then Google Cloud
-
-`LANGUAGE_PROVIDER=mock` (the default) returns deterministic results that are visibly labeled, such as a fixture transcript, `[mock pt]` translations and a quiet placeholder tone for narration. It makes no network calls. When someone reads their script aloud in mock mode, the "transcript" repeats the script so the demo stays coherent, and the screen says so.
-
-To switch to Google Cloud's free tier:
+`LANGUAGE_PROVIDER=gcp` uses Google Cloud Speech-to-Text, Translation and Text-to-Speech:
 
 1. In a Google Cloud project with billing enabled, enable **Cloud Speech-to-Text API**, **Cloud Translation API** and **Cloud Text-to-Speech API**.
 2. Create an **API key** (APIs & Services → Credentials) and restrict it to those three APIs.
@@ -61,39 +50,68 @@ To switch to Google Cloud's free tier:
 
 If `gcp` is selected without a key, requests fail with a clear error. The app never silently falls back to mock results.
 
-**Spike checklist (first hour):** confirm each locale and voice in [`src/lib/domain/languages.ts`](src/lib/domain/languages.ts) exists. Confirm word timestamps come back for en-US, fr-CA, es-US/es-MX/es-PE and pt-BR. Confirm SSML mark timepoints work for the chosen Standard voices (caption timing depends on it). Check the current free-tier limits on Google's pricing pages.
+`LANGUAGE_PROVIDER=mock` (the default when unset) is for development and the smoke test only. It makes no network calls and returns visibly labeled results: an example transcript, `[mock pt]` translations and a quiet tone for narration. A production server refuses to run in mock mode.
+
+## Privacy by design
+
+What the app does, and what the Privacy Policy promises (the policy states the same limits the code enforces; a test checks they match):
+
+- **No storage.** Stories, consents and file records are in memory only ([`store.ts`](src/lib/server/store.ts)); media are temporary files ([`temp-store.ts`](src/lib/server/temp-store.ts)). There is no database, no backup and no admin view. A restart deletes everything, and a new process clears any leftover temp files before storing one.
+- **Deleted on download.** `POST /api/export` hands over the approved file and deletes the story with everything made from it. The browser keeps the file for sharing and saving, and the share screen says the server copy is gone.
+- **Deletion backstop.** Media expire after 1 hour, stories after 2 hours (`STORY_TTL_MS` in [`limits.ts`](src/lib/domain/limits.ts)), and the session cookie after 2 hours.
+- **Adults only.** "No, I'm under 18" creates nothing and sends nothing. The server refuses any other answer, and every content and export route checks it.
+- **Google only when allowed.** Transcription, translation and synthetic voice each need the one-per-story consent; typing, "No voice" and the story's own language need none. Face detection runs on the device; the server receives only the box to blur. No voiceprints or face templates are made.
+- **No tracking.** One essential session cookie. No analytics, ads or third-party scripts.
+
+## Going to production
+
+The production server **refuses to start** ([`src/instrumentation.ts`](src/instrumentation.ts)) unless all of these are set:
+
+| Setting | Why |
+|---|---|
+| `LANGUAGE_PROVIDER=gcp` and `GOOGLE_API_KEY` | No placeholder results for real people |
+| `LEGAL_OPERATOR_NAME`, `LEGAL_CONTACT_EMAIL`, `LEGAL_MAILING_ADDRESS`, `LEGAL_GOVERNING_STATE` | The operator the Terms of Use and Privacy Policy name. Set in the environment, never in code |
+
+Deploying on Google Cloud Run, which the policy describes:
+
+- **Region:** a US region. The policy says the service runs on Google Cloud servers in the United States.
+- **One instance per story:** stories live in one instance's memory, so turn on **session affinity** (or cap the service at one instance) rather than adding shared storage.
+- **Logs:** keep Cloud Logging retention at 30 days or less, since the policy says request logs are kept up to 30 days. Never log story text.
+- **Speech-to-Text data logging:** leave it off (it's opt-in).
+- **Secrets:** keep the API key in Secret Manager.
+
+Before launch, have a lawyer review [the notices](src/lib/legal) and have native speakers review the translations. When the notices' wording changes, bump `TERMS_VERSION`, `PRIVACY_VERSION` and `LEGAL_EFFECTIVE_DATE` in [`versions.ts`](src/lib/legal/versions.ts).
 
 ## What's built
 
-The storyteller's flow (plan section 3), end to end:
+The storyteller's flow, end to end:
 
-1. **Entry:** interface language by name (no flags). The first tap chooses the path, **My baptism story** or **My testimony**, then the age question starts the story. The path sets the guiding questions (a testimony asks what you were like before knowing Christ, what happened to make you change, and what has changed since), the sample stories, the label on cards and plain-background videos ("MY TESTIMONY" in four languages) and the export filename.
-2. **Guardian gate:** under-18 and not-sure stories can't be written, recorded, rendered, exported or submitted until a *simulated* guardian approves. The server enforces this on every content route, not just the UI. A decline is final for that story.
-3. **What gets shared:** no separate privacy screen. Each format, and each voice choice, carries a one-line note of exactly what it shares ("Shares your face, voice and surroundings…", "No face or voice"), with one line on names and identifying details.
-4. **Capture:** type with three optional prompts or "my own way"; record your voice or **film yourself** (camera on to frame, then record; MediaRecorder with detected MIME type, 60-second hard stop, retry, playback); upload an audio or video file; or load a fabricated sample. Story language is separate from interface language, with regional transcription accents (es-MX, es-PE, fr-CA…).
-5. **Cloud consent:** one notice per story, shown the first time anything would leave the device. It names the service and lists each use (transcription; translation and synthetic voice only if picked), retention and alternatives. A first camera video also explains that the app keeps the video for up to an hour. The server refuses requests without it.
-6. **Check the words (recordings):** one screen: listen back (or watch, for video), edit each sentence, uncertain words highlighted, the identifying-details helper and the optional name. After filming, it goes straight to the preview as *Video of me*.
+1. **Entry:** interface language by name (no flags). The first tap chooses the path, **My baptism story** or **My testimony**. The path sets the guiding questions (a testimony asks what you were like before knowing Christ, what happened to make you change, and what has changed since), the label on cards and plain-background videos ("MY TESTIMONY" in four languages) and the export filename.
+2. **Age and notices:** "Are you 18 or older?" with a plain note on how the story is used and deleted, and links to the Terms and Privacy Policy. Only "Yes" starts a story.
+3. **What gets shared:** each format, and each voice choice, carries a one-line note of exactly what it shares ("Shares your face, voice and surroundings…", "No face or voice"), with one line on names and identifying details.
+4. **Capture:** type with three optional prompts or "my own way"; record your voice or **film yourself** (camera on to frame, then record; MediaRecorder with detected MIME type, 60-second hard stop, retry, playback); or upload an audio or video file. Story language is separate from interface language, with regional transcription accents (es-MX, es-PE, fr-CA…).
+5. **Cloud consent:** one notice per story, shown the first time anything would leave the device. It names the service and lists each use (transcription; translation and synthetic voice only if picked), how long the app keeps a recording, and alternatives. The server refuses requests without it.
+6. **Check the words (recordings):** listen back (or watch, for video), edit each sentence, uncertain words highlighted, the identifying-details helper and the optional name. After filming, it goes straight to the preview as *Video of me*.
 7. **Story review:** edit text, optional display name, and flags for possible names, places, dates and family members. These are an aid, and the text is never edited automatically.
-8. **Formats:** **Option B** *Video of me*: the person's own camera video (720×1280 MP4) with burned-in captions, fitted into 9:16 and padded rather than cropped, with an optional **face cover**. **Option A** story card (1080×1350 PNG). **Option C** narrated video over a plain background with *my recorded voice*, *a synthetic voice* or *no voice*. The "My baptism story" label is on the card and the plain-background video, never on the person's own video.
+8. **Formats:** **Option B** *Video of me*: the person's own camera video (720×1280 MP4) with burned-in captions, fitted into 9:16 and padded rather than cropped, with an optional **face cover**. **Option A** story card (1080×1350 PNG). **Option C** narrated video over a plain background with *my recorded voice*, *a synthetic voice* or *no voice*. The path's label is on the card and the plain-background video, never on the person's own video.
 9. **Script reader:** the approved text in large adjustable blocks, record/retry/playback, then the take is transcribed and reviewed so captions follow what was actually said.
-10. **Preview and approval:** the preview renders by itself (and again shortly after any change) and sits at the top with **Approve and continue** right under it; one tap approves that exact file and moves to sharing. Below: the passage (a long card starts with none selected), on-screen language (machine translation is labeled), face cover and name. Any change makes a new version that needs approval again.
-11. **Share:** feedback / finished / keep-a-copy intentions, an editable accompanying message kept separate from the story, WhatsApp and Instagram guided handoff with native share where supported, download, copy text, and "can't find the file?" help. It never claims anything was sent or posted.
-12. **Demo inbox:** a separate, unchecked opt-in (review only, not publication) with its own consent and, for minors, its own guardian decision. Shows a permission receipt with a withdraw button. Repeated clicks make one submission.
-13. **Delete my story** (on the preview, share and guardian-declined screens) removes everything the app holds for it: records, recordings, renders and any inbox copy.
+10. **Preview and approval:** the preview renders by itself and sits at the top with **Approve and continue** right under it. The approval says that continuing hands over the file and deletes the server copy. Any change makes a new version that needs approval again.
+11. **Share:** the file is handed over and the story deleted on arrival; the screen confirms it. WhatsApp and Instagram guided handoff with native share where supported, and save to device. It never claims anything was sent or posted.
+12. **Delete my story** (before download) removes everything the app holds for it at once.
 
 | Area | Files |
 |---|---|
-| Shared contract: Story, NarrationTake, RenderSpec, Asset, Consent, MockSubmission | [`src/lib/domain/types.ts`](src/lib/domain/types.ts) |
-| `authorize()`: the single export/submission check (exact version, stale story, guardian, separate inbox consent) and `captureAllowed()` | [`src/lib/domain/policy.ts`](src/lib/domain/policy.ts) |
+| Shared contract: Story, NarrationTake, RenderSpec, Asset, Consent | [`src/lib/domain/types.ts`](src/lib/domain/types.ts) |
+| `authorize()`: the single export check (adults only, exact version, stale story) and `captureAllowed()` | [`src/lib/domain/policy.ts`](src/lib/domain/policy.ts) |
 | Word-timed captions ([`timing.ts`](src/lib/domain/timing.ts)), sentence offsets, identifying-detail flags, burned-in labels in four languages | [`src/lib/domain/`](src/lib/domain) |
 | Card and video layouts as ASS documents (libass does wrapping with the bundled fonts) | [`src/lib/render/ass.ts`](src/lib/render/ass.ts) |
 | FFmpeg renderers and the server-side composer (builds the RenderSpec from the stored story, never from client-sent captions) | [`src/lib/server/render.ts`](src/lib/server/render.ts), [`src/lib/server/compose.ts`](src/lib/server/compose.ts) |
-| In-memory story/asset/consent/inbox store, ownership guards | [`src/lib/server/store.ts`](src/lib/server/store.ts), [`src/lib/server/guards.ts`](src/lib/server/guards.ts) |
+| In-memory working store, ownership guards, temporary media | [`store.ts`](src/lib/server/store.ts), [`guards.ts`](src/lib/server/guards.ts), [`temp-store.ts`](src/lib/server/temp-store.ts) |
+| Terms of Use and Privacy Policy in four languages, operator settings, production checks | [`src/lib/legal/`](src/lib/legal), [`production-checks.ts`](src/lib/server/production-checks.ts) |
 | Provider interface, mock and Google Cloud adapters | [`src/lib/providers/`](src/lib/providers) |
-| Session-owned, expiring temp media store | [`src/lib/server/temp-store.ts`](src/lib/server/temp-store.ts) |
-| UI flow, recorder, consent panel | [`src/components/`](src/components) |
-| Interface strings: en, fr (Canada), es-419, pt-BR. Drafts, labeled in the UI as unreviewed | [`src/i18n/`](src/i18n) |
-| Made-up samples for each path. Baptism: the hackathon's three, verbatim (A long and rambling, B very short, C Spanish voice note). Testimony: T1 before/how/after (English), T2 raised in church (French), T3 voice note (Portuguese), T4 a family member (Spanish). Mock transcription returns a sample from the story's own path and language, or a labeled placeholder | [`src/fixtures/stories.ts`](src/fixtures/stories.ts) |
+| UI flow, recorder, consent panel, legal pages | [`src/components/`](src/components) |
+| Interface strings: en, fr (Canada), es-419, pt-BR. Drafts pending native-speaker review | [`src/i18n/`](src/i18n) |
+| Made-up stories used only by unit tests and mock transcription, never shown to storytellers | [`src/fixtures/stories.ts`](src/fixtures/stories.ts) |
 
 ### API
 
@@ -101,29 +119,20 @@ All routes are session-owned (anonymous `sid` cookie). Another session gets `404
 
 | Route | Purpose |
 |---|---|
-| `GET`/`POST /api/stories` · `GET`/`PATCH`/`DELETE /api/stories/:id` | List this session's stories (so a reload or "Start a new story" can continue or delete them); create after the path (`storyType`: `baptism`/`testimony`) and age question; update text, take, name, language or privacy (content edits bump the version); delete everything |
-| `POST /api/stories/:id/guardian` | **Test scenario:** simulated guardian decision that unlocks capture |
+| `GET`/`POST /api/stories` · `GET`/`PATCH`/`DELETE /api/stories/:id` | List this session's unfinished stories (so a reload can continue or delete them); create after the path (`storyType`) and `ageGate: "adult"`; update text, take, name, language or privacy (content edits bump the version); delete everything |
 | `POST /api/transcribe` | multipart `audio` (audio or camera video; only the sound goes to the speech service), `storyId`, `cloudProcessingAccepted`, optional `sttLocale`, `keep` (keep a converted copy ≤ 1 h for narration), `scriptText` (mock only) |
 | `POST /api/render` | `storyId`, `kind` (`card`/`narrated-video`/`captioned-video`), `narration`, `outputLanguage`, `span`, `showName`, `showStoryLabel`, `cloud` consents. Returns the asset and its permission state |
 | `GET /api/assets/:id` | In-app preview of the exact file (`?state=1` for permission state) |
-| `POST /api/approve` | Consent for one asset version and purpose (`personal-output` or `baptize-review`) |
-| `POST /api/guardian-simulation` | **Test scenario:** guardian decision for one asset version and purpose |
-| `POST /api/export` | The only way a file leaves the app; calls `authorize("export")` |
-| `POST /api/mock-submissions` · `DELETE /api/mock-submissions/:id` | Idempotent demo-inbox submission (calls `authorize("submit-mock-inbox")`); withdraw |
-| `GET`/`POST`/`DELETE /api/inbox` · `GET /api/inbox/:id` | Operator inbox behind a passcode |
-| `POST /api/translate`, `POST /api/synthesize`, `GET`/`DELETE /api/media/:id`, `GET /api/health` | Lower-level helpers from the scaffold, now also gated by story ownership and the age gate |
-
-## Fixed while getting it running on Windows
-
-- **`npm test` didn't start** on Node 22.11 (`ERR_REQUIRE_ESM`): Vite 7 is ESM-only and the config was loaded as CommonJS. The config is now `vitest.config.mts`.
-- **`toFilterPath()` escaped only one of FFmpeg's two filter-string levels,** so a Windows drive colon still split the option (`Unable to parse option value … as image size`). It now quotes the value correctly. A test renders through a temp path containing a colon, a space and an apostrophe.
+| `POST /api/approve` | Approval of one exact asset version (`purpose: "personal-output"`) |
+| `POST /api/export` | The only way a file leaves the app: checks `authorize()`, returns the file, and deletes the story (`X-Story-Deleted: true`) |
+| `POST /api/translate`, `POST /api/synthesize`, `GET`/`DELETE /api/media/:id`, `GET /api/health` | Lower-level helpers, gated by story ownership and the adults-only check. In production, health returns only the provider and FFmpeg status |
 
 ## Not yet verified
 
-- **Live microphone recording and file upload through the UI** (including the script reader), in desktop browsers and on iOS Safari and Android Chrome. The recorder, MIME detection and upload checks are built and the server side is tested with generated audio, but no one has recorded or uploaded through the UI yet.
+- **Live microphone recording and file upload through the UI** (including the script reader), in desktop browsers and on iOS Safari and Android Chrome.
 - **Native share sheets** (WhatsApp/Instagram targets) on real phones, and the exact Instagram/WhatsApp steps in the current apps.
 - **Camera recording on real phones** (the desktop browser pane has no camera). The video path was tested with a generated portrait video carrying real speech, through Google Speech-to-Text.
-- **Interface translations** are drafts. Consent and privacy wording in all four languages needs native-speaker and legal review before any real-data use.
+- **Legal review.** The Terms and Privacy Policy are drafted from what the code does, for a US-only launch; a lawyer needs to review them, and native speakers the translations.
 
 ## Face cover (Option B)
 
@@ -146,9 +155,9 @@ Checked on 2026-10-24 against real Google audio: synthetic-voice slides start wi
 ## Next steps
 
 - Film a real take per language on phones and check caption timing by eye, especially Peruvian Spanish (it uses the older transcription model).
-- Try the full flow on the team's iPhone and Android phones through the tunnel; adjust the WhatsApp/Instagram instructions to what the apps actually show.
-- Try the face cover on real phone videos (walking, turning, several people) and decide whether its "help, not a guarantee" wording is enough for the pilot.
+- Try the full flow on iPhone and Android over HTTPS; adjust the WhatsApp/Instagram instructions to what the apps actually show.
+- Try the face cover on real phone videos (walking, turning, several people) and decide whether its "help, not a guarantee" wording is enough for launch.
 
 ## Credits
 
-Next.js, React, shadcn/ui (Base UI), Tailwind CSS, lucide icons, [MediaPipe Tasks Vision](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector) and its BlazeFace short-range model (Apache 2.0), FFmpeg via [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) with libass, Vitest. Fonts (SIL Open Font License, in [`assets/fonts`](assets/fonts) with licenses in [`assets/font-licenses`](assets/font-licenses)): [Atkinson Hyperlegible](https://brailleinstitute.org/freefont) by the Braille Institute, and [Literata](https://github.com/googlefonts/literata) by TypeTogether for Google. Story fixtures are fabricated for this project.
+Next.js, React, shadcn/ui (Base UI), Tailwind CSS, lucide icons, [MediaPipe Tasks Vision](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector) and its BlazeFace short-range model (Apache 2.0), FFmpeg via [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) with libass, Vitest. Fonts (SIL Open Font License, in [`assets/fonts`](assets/fonts) with licenses in [`assets/font-licenses`](assets/font-licenses)): [Atkinson Hyperlegible](https://brailleinstitute.org/freefont) by the Braille Institute, and [Literata](https://github.com/googlefonts/literata) by TypeTogether for Google. Test stories are fabricated for this project.

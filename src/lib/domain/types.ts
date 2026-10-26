@@ -30,8 +30,6 @@ export interface PrivacyPreferences {
   notSure: boolean;
 }
 
-export type GuardianState = "pending" | "approved-in-simulation" | "declined";
-
 /** A time-coded span of text. Times are relative to the audio the span belongs to. */
 export interface Segment {
   text: string;
@@ -83,17 +81,11 @@ export interface NarrationTake {
 
 export interface Story {
   id: string;
-  /** True for fabricated fixtures. The prototype accepts no real testimony. */
-  fixture: boolean;
   sessionId: string;
-  /** Sets the prompts, sample stories and the label burned into cards and plain-background videos. */
+  /** Sets the prompts and the label burned into cards and plain-background videos. */
   storyType: StoryType;
+  /** The service is for adults; a story only exists once the person answers that they're 18 or older. */
   ageGate: AgeGate;
-  /**
-   * Simulated guardian decision that unlocks capture for "under-18" and
-   * "not-sure". A test scenario only, never guardianship verification.
-   */
-  guardianCapture: GuardianState | "not-needed";
   interfaceLanguage: LanguageId;
   sourceLanguage: LanguageId;
   privacy: PrivacyPreferences;
@@ -164,33 +156,18 @@ export interface Asset {
   renderedAt: number;
 }
 
-export type ConsentPurpose = "personal-output" | "baptize-review" | "public-featuring";
+/** The app's only permission: the storyteller approving an exact version to leave the app as a download. */
+export type ConsentPurpose = "personal-output";
 
+/** Held only while the story exists; deleted with it. */
 export interface Consent {
   id: string;
   storyId: string;
   assetId: string;
   assetVersion: number;
   purpose: ConsentPurpose;
-  /** Named recipient or audience, for example "baptize-demo-inbox". */
-  recipient?: string;
   decision: "granted" | "declined";
-  /** Required when the story's age gate is not "adult". */
-  guardian?: GuardianState;
   decidedAt: number;
   consentCopyVersion: string;
   revokedAt?: number;
-}
-
-export interface MockSubmission {
-  id: string;
-  storyId: string;
-  assetId: string;
-  assetVersion: number;
-  scopes: ConsentPurpose[];
-  state: "pending" | "withdrawn";
-  idempotencyKey: string;
-  mock: true;
-  createdAt: number;
-  withdrawnAt?: number;
 }

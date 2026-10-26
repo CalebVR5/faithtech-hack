@@ -25,14 +25,15 @@ Tokens live in [src/app/globals.css](src/app/globals.css). Rendered cards and vi
 
 ## Rules
 
-- **One gold button per moment.** Gold follows the next step: "Make preview", then "Approve this version", then "Continue to sharing". Everything else is outline or ghost. Optional paths, such as the demo inbox, are never gold.
+- **One gold button per moment.** Gold follows the next step: "Make preview", then "Approve this version", then "Continue to sharing". Everything else is outline or ghost.
 - **Teal means selected.** Selected options, checked rows (`checkRow` in [step-shell.tsx](src/components/step-shell.tsx)), chosen sentences and the chosen share destination all use teal border plus `--secondary` tint, or solid teal for compact toggles.
 - **No cream, gradients, glass, glows or side-stripe borders.**
 - **The result before the settings.** On the preview, the rendered file and "Approve and continue" come first; choices that change it sit below under "Change the details". Nothing needs a separate "make" or "update" button: the preview follows the choices.
 - **One tap per decision.** No checkbox in front of a button that already states the decision. Consent is one notice per story; approval is one button that also moves on.
 - **The path comes first.** The welcome screen's decision is baptism story or testimony, shown as two path cards (icon tile, title, one-line description, chevron) directly under the intro. Earlier stories sit below as a compact secondary list with outline "Continue" and ghost "Delete", never gold. Later steps name the chosen path in an eyebrow above the title (`eyebrow` on `StepShell`).
 - **Sequences are numbered.** Guiding questions and "How it works" use the teal `StepNumber` circle, so the testimony's before / turning point / since reads as an order, not a checklist.
-- **Filters aren't actions.** A view filter (the inbox's All / Baptism / Testimony) is a segmented control with counts, visually distinct from the buttons beside it.
+- **Say when something is deleted.** The approval names what continuing does (the file is handed over, the server copy deleted), and the share screen confirms it with a teal note. No Back from there: the story behind the file is gone.
+- **Legal text stays readable.** The notices use the app's type and width, a contents list, and short sections; links inside sentences are teal and underlined. The footer links them from every page.
 - **Helpers stay compact until needed.** The face-cover editor collapses to one line when the cover was placed automatically and nothing was missed, and opens itself when a face was missed or not found.
 
 ## Type
@@ -53,5 +54,5 @@ Motion is limited to state changes. There's no decorative or looping animation.
 
 ## Checks
 
-- `npx impeccable detect --viewport 390x844 http://localhost:3000` and the same at 1280x800 should report no findings, for `/` and `/testimony` (the age step). They reported none on 2026-10-25. impeccable 4.7.0 times out loading `/inbox`, so check the inbox by eye.
+- `npx impeccable detect --viewport 390x844 http://localhost:3000` and the same at 1280x800 should report no findings, for `/` and `/testimony` (the age step). They reported none on 2026-10-25. Check `/privacy` and `/terms` with the `LEGAL_*` settings in `.env.local`.
 - Check every new screen at 375px wide, with one gold action visible at a time.

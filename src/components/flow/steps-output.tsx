@@ -5,7 +5,6 @@ import { AArrowDown, AArrowUp, BadgeCheck, Clapperboard, Image as ImageIcon, Loa
 import { useApp, type OutputChoices } from "@/components/app-state";
 import { CloudConsent } from "@/components/cloud-consent";
 import { DeleteStory } from "@/components/flow/delete-story";
-import { GuardianAssetPanel } from "@/components/flow/guardian-asset";
 import { ErrorNote } from "@/components/flow/steps-start";
 import { useTranscribe } from "@/components/flow/steps-capture";
 import { FaceCoverEditor } from "@/components/face-cover-editor";
@@ -266,7 +265,7 @@ export function PreviewStep() {
     try {
       const state = await api.approve({ assetId: asset.asset.id, assetVersion: asset.asset.version, purpose: "personal-output", decision: "granted" });
       update({ asset: state });
-      // Approving is the step into sharing; a minor's version still waits for the guardian here.
+      // Approving is the step into sharing, where the file is handed over and the server copy deleted.
       if (state.exportDecision.ok) go("share");
     } catch (err) {
       setError(errorText(err));
@@ -391,8 +390,6 @@ export function PreviewStep() {
               <p className="text-sm text-muted-foreground">{t.preview.keepPrivate}</p>
             </div>
           )}
-
-          {asset.needsGuardian && personalConsent && <GuardianAssetPanel state={asset} purposes={["personal-output"]} />}
 
           {approved && (
             <Button className={`${bigButton} sm:w-fit`} onClick={() => go("share")}>

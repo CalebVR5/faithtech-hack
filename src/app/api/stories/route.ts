@@ -1,15 +1,14 @@
 import { isLanguageId } from "@/lib/domain/languages";
-import { isStoryType, type AgeGate, type Story } from "@/lib/domain/types";
+import { isStoryType, type Story } from "@/lib/domain/types";
 import { handleRouteError, json, jsonError } from "@/lib/server/http";
 import { getOrCreateSessionId, getSessionId } from "@/lib/server/session";
 import { db, newId, STORY_TTL_MS, storyView, sweepStories } from "@/lib/server/store";
 
-const AGE_ANSWERS: AgeGate[] = ["adult", "under-18", "not-sure"];
-
 /**
- * This session's stories, newest first. A reload or "Start a new story" drops
- * the browser's in-memory draft, so this lets the person find an earlier story
- * again to continue or delete it, without keeping anything in browser storage.
+ * This session's unfinished stories, newest first. A reload or "Start a new
+ * story" drops the browser's in-memory draft, so this lets the person find an
+ * unfinished story again to continue or delete it before it expires, without
+ * keeping anything in browser storage.
  */
 export async function GET() {
   try {
@@ -26,26 +25,25 @@ export async function GET() {
   }
 }
 
-// Starts a story once the path is chosen and the age question is answered
-// (plan section 3). No name, contact details or date of birth: just those
-// answers and language choices.
+// Starts a story once the path is chosen and the person confirms they're 18
+// or older (plan section 3). No name, contact details or date of birth: just
+// those answers and language choices. The service is for adults only, so no
+// story is created for anyone else.
 export async function POST(request: Request) {
   try {
-    const sessionId = await getOrCreateSessionId(request);
     const body = await request.json().catch(() => null);
     const { storyType, ageGate, interfaceLanguage } = body ?? {};
     if (!isStoryType(storyType)) return jsonError(400, "Choose a baptism story or a testimony.", "story-type-unanswered");
-    if (!AGE_ANSWERS.includes(ageGate)) return jsonError(400, "Please answer the age question.", "age-unanswered");
+    if (ageGate !== "adult") return jsonError(403, "This service is for adults 18 and older.", "adults-only");
     if (!isLanguageId(interfaceLanguage)) return jsonError(400, "Choose a language.");
 
+    const sessionId = await getOrCreateSessionId(request);
     sweepStories();
     const story: Story = {
       id: newId(),
-      fixture: false,
       sessionId,
       storyType,
       ageGate,
-      guardianCapture: ageGate === "adult" ? "not-needed" : "pending",
       interfaceLanguage,
       sourceLanguage: interfaceLanguage,
       privacy: { hideFace: false, hideVoice: false, hideName: false, hideSurroundings: false, notSure: false },

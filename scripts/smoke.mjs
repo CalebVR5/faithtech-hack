@@ -1,15 +1,19 @@
-// End-to-end check of the permission rules against a running server, using
-// the mock provider. Covers plan section 9: approval per exact version, stale
-// stories, guardian gates on direct API calls, cross-session access, separate
-// inbox consent, idempotent submission, withdrawal and deletion.
+// End-to-end check of the permission and deletion rules against a running
+// server, using the mock provider: adults only, approval per exact version,
+// stale stories, cross-session access, the story deleted when its file is
+// downloaded, and deletion on request.
 //
-//   npm run dev            (in one terminal, LANGUAGE_PROVIDER=mock)
-//   npm run smoke          (in another; or: node scripts/smoke.mjs http://localhost:3000)
-//
-// Needs INBOX_PASSCODE in the server's environment (see .env.example).
+//   LANGUAGE_PROVIDER=mock npm run dev   (in one terminal)
+//   npm run smoke                        (in another; or: node scripts/smoke.mjs http://localhost:3000)
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
-const PASSCODE = process.env.INBOX_PASSCODE ?? "demo-inbox";
+
+// Made-up story text, sent as if typed. Too long for one card, so cards use one sentence of it.
+const STORY_TEXT =
+  "So okay, I grew up kind of going to church with my grandma but I stopped when I was like fourteen. " +
+  "My friend Dani kept inviting me to this Tuesday thing and I kept saying no. Then one night I just went. " +
+  "People were just normal and kind. Fast forward a year and I'm in the water at the beach and my grandma is there crying. " +
+  "That's it. That's the story. Sorry it's long.";
 
 /** A 4-second 300 Hz tone as 16-bit mono WAV, standing in for a recording. */
 function toneWav(seconds = 4, rate = 16000) {
@@ -68,17 +72,27 @@ const b = client();
 console.log("health");
 const h = await a("GET", "/api/health");
 check("ffmpeg ok", h.data.ffmpeg?.ok, h.data);
+check("mock provider for this test", h.data.provider === "mock", h.data);
 
-console.log("adult card flow");
+console.log("adults only");
 let r = await a("POST", "/api/stories", { ageGate: "adult", interfaceLanguage: "en" });
 check("story needs a path", r.status === 400 && r.data.code === "story-type-unanswered", r.data);
+for (const ageGate of ["under-18", "not-sure", "unanswered"]) {
+  r = await a("POST", "/api/stories", { storyType: "baptism", ageGate, interfaceLanguage: "en" });
+  check(`no story for ${ageGate}`, r.status === 403 && r.data.code === "adults-only", r.data);
+}
+r = await a("GET", "/api/stories");
+check("nothing created for refused answers", r.status === 200 && r.data.stories.length === 0, r.data);
+
+console.log("adult card flow");
 r = await a("POST", "/api/stories", { storyType: "baptism", ageGate: "adult", interfaceLanguage: "en" });
 check("create story", r.status === 201, r.data);
 const story = r.data.story;
-r = await a("PATCH", `/api/stories/${story.id}`, { fixtureId: "sample-a-rambling", displayName: "Sam" });
-check("load fixture bumps version", r.data.story?.version === 2, r.data);
+r = await a("PATCH", `/api/stories/${story.id}`, { reviewedText: STORY_TEXT, sourceKind: "text", displayName: "Sam" });
+check("typed text bumps version", r.data.story?.version === 2, r.data);
+r = await a("PATCH", `/api/stories/${story.id}`, { fixtureId: "sample-a-rambling" });
+check("sample stories are gone", r.status === 200 && r.data.story.reviewedText === STORY_TEXT, r.data);
 const text = r.data.story.reviewedText;
-// Sample A is too long for one card, so the card uses a single sentence from it.
 const excerpt = "People were just normal and kind.";
 const span = [text.indexOf(excerpt), text.indexOf(excerpt) + excerpt.length];
 r = await a("POST", "/api/render", { storyId: story.id, kind: "card", span, showName: true, outputLanguage: "en" });
@@ -94,21 +108,12 @@ r = await a("POST", "/api/export", { assetId: card.id });
 check("export blocked without approval", r.status === 403 && r.data.code === "needs-approval", r.data);
 r = await a("POST", "/api/approve", { assetId: card.id, assetVersion: card.version - 1, purpose: "personal-output", decision: "granted" });
 check("approving a different version is refused", r.status === 409, r.data);
+r = await a("POST", "/api/approve", { assetId: card.id, assetVersion: card.version, purpose: "baptize-review", decision: "granted" });
+check("review permission no longer exists", r.status === 400, r.data);
 r = await a("POST", "/api/approve", { assetId: card.id, assetVersion: card.version, purpose: "personal-output", decision: "granted" });
 check("approve", r.status === 200 && r.data.exportDecision.ok, r.data);
-r = await a("POST", "/api/export", { assetId: card.id });
-check("export after approval", r.status === 200 && /attachment; filename="baptism-story.png"/.test(r.headers.get("content-disposition")));
 r = await b("POST", "/api/export", { assetId: card.id });
 check("other session can't export", r.status === 404, r.data);
-r = await a("POST", "/api/mock-submissions", { assetId: card.id, idempotencyKey: "k1" });
-check("inbox needs its own consent", r.status === 403 && r.data.code === "needs-inbox-consent", r.data);
-r = await a("POST", "/api/approve", { assetId: card.id, assetVersion: card.version, purpose: "baptize-review", decision: "granted" });
-check("inbox consent", r.data.submitDecision?.ok, r.data);
-r = await a("POST", "/api/mock-submissions", { assetId: card.id, idempotencyKey: "k1" });
-check("submit", r.status === 201 && r.data.submissions.length === 1, r.data);
-r = await a("POST", "/api/mock-submissions", { assetId: card.id, idempotencyKey: "k1" });
-check("repeat click → one submission", r.data.submissions?.length === 1, r.data);
-const submissionId = r.data.submissions[0].id;
 
 r = await a("PATCH", `/api/stories/${story.id}`, { reviewedText: text + " Edited." });
 r = await a("POST", "/api/export", { assetId: card.id });
@@ -160,110 +165,71 @@ r = await a("PATCH", `/api/stories/${story.id}`, {
 check("save take", r.status === 200 && r.data.story.take?.audioRef === t.audioRef, r.data);
 r = await a("POST", "/api/render", { storyId: story.id, kind: "narrated-video", narration: "recorded", outputLanguage: "en", showName: true });
 check("recorded video", r.status === 200 && r.data.asset.spec.captions[0].text.startsWith("I read"), r.data);
+const recorded = r.data.asset;
+
+console.log("download deletes everything");
+r = await a("GET", "/api/stories");
+check("session lists its unfinished story", r.data.stories.some((s) => s.id === story.id), r.data);
+check("story list hides session id", r.data.stories.every((s) => !("sessionId" in s)), r.data);
+r = await b("GET", "/api/stories");
+check("other session can't list it", !r.data.stories.some((s) => s.id === story.id), r.data);
+r = await a("POST", "/api/approve", { assetId: recorded.id, assetVersion: recorded.version, purpose: "personal-output", decision: "granted" });
+r = await a("POST", "/api/export", { assetId: recorded.id });
+check(
+  "export hands over the file",
+  r.status === 200 && /attachment; filename="baptism-story.mp4"/.test(r.headers.get("content-disposition")) && r.data.length > 1000,
+);
+check("export says the server copy is gone", r.headers.get("x-story-deleted") === "true");
+r = await a("GET", `/api/stories/${story.id}`);
+check("story gone after download", r.status === 404, r.data);
+for (const [name, url] of [["card", card.previewUrl], ["synthetic video", vid.previewUrl], ["recorded video", recorded.previewUrl]]) {
+  r = await a("GET", url);
+  check(`${name} file gone`, r.status === 404);
+}
+r = await a("POST", "/api/export", { assetId: recorded.id });
+check("can't download twice", r.status === 404, r.data);
+r = await a("GET", "/api/stories");
+check("downloaded story leaves the list", !r.data.stories.some((s) => s.id === story.id), r.data);
 
 console.log("testimony path");
 {
   const c = client();
-  let q = await c("POST", "/api/stories", { storyType: "testimony", ageGate: "adult", interfaceLanguage: "en" });
+  let q = await c("POST", "/api/stories", { storyType: "testimony", ageGate: "adult", interfaceLanguage: "fr" });
   check("create testimony", q.status === 201 && q.data.story.storyType === "testimony", q.data);
   const tid = q.data.story.id;
-  q = await c("PATCH", `/api/stories/${tid}`, { fixtureId: "sample-b-short" });
-  check("baptism sample refused on the testimony path", q.status === 400 && q.data.code === "bad-fixture", q.data);
-  q = await c("PATCH", `/api/stories/${tid}`, { fixtureId: "sample-t2-quiet" });
-  check("testimony sample loads", q.status === 200 && q.data.story.sourceLanguage === "fr", q.data);
+  q = await c("PATCH", `/api/stories/${tid}`, { reviewedText: "J'ai grandi à l'église. Aujourd'hui, je prie pour vrai.", sourceLanguage: "fr" });
   q = await c("POST", "/api/render", { storyId: tid, kind: "card", outputLanguage: "fr" });
   const tc = q.data.asset;
   await c("POST", "/api/approve", { assetId: tc.id, assetVersion: tc.version, purpose: "personal-output", decision: "granted" });
   q = await c("POST", "/api/export", { assetId: tc.id });
   check("testimony export filename", q.status === 200 && /filename="testimony.png"/.test(q.headers.get("content-disposition")), q.data);
-  await c("DELETE", `/api/stories/${tid}`);
+  q = await c("GET", `/api/stories/${tid}`);
+  check("testimony gone after download", q.status === 404, q.data);
 }
 
-console.log("minor flow");
-r = await a("POST", "/api/stories", { storyType: "baptism", ageGate: "under-18", interfaceLanguage: "en" });
-const minor = r.data.story;
-check("minor starts pending", minor.guardianCapture === "pending");
-r = await a("PATCH", `/api/stories/${minor.id}`, { fixtureId: "sample-b-short" });
-check("content blocked before guardian", r.status === 403 && r.data.code === "capture-blocked", r.data);
-r = await a("POST", "/api/render", { storyId: minor.id, kind: "card", outputLanguage: "en" });
-check("render blocked before guardian", r.status === 403, r.data);
-r = await a("POST", `/api/stories/${minor.id}/guardian`, { decision: "approved-in-simulation" });
-check("guardian sim approves capture", r.data.story?.guardianCapture === "approved-in-simulation", r.data);
-r = await a("PATCH", `/api/stories/${minor.id}`, { fixtureId: "sample-b-short" });
-r = await a("POST", "/api/render", { storyId: minor.id, kind: "card", outputLanguage: "en" });
-let mcard = r.data.asset;
-r = await a("POST", "/api/approve", { assetId: mcard.id, assetVersion: mcard.version, purpose: "personal-output", decision: "granted" });
-check("minor approval alone isn't enough", r.data.exportDecision?.code === "needs-guardian", r.data);
-r = await a("POST", "/api/export", { assetId: mcard.id });
-check("export blocked for minor", r.status === 403 && r.data.code === "needs-guardian", r.data);
-r = await a("POST", "/api/guardian-simulation", { assetId: mcard.id, assetVersion: mcard.version, purpose: "personal-output", decision: "approved-in-simulation" });
-check("guardian sim approves asset", r.data.exportDecision?.ok, r.data);
-r = await a("POST", "/api/render", { storyId: minor.id, kind: "card", outputLanguage: "en" });
-mcard = r.data.asset;
-r = await a("POST", "/api/approve", { assetId: mcard.id, assetVersion: mcard.version, purpose: "personal-output", decision: "granted" });
-check("changed asset needs guardian again", r.data.exportDecision?.code === "needs-guardian", r.data);
-
-r = await a("POST", "/api/stories", { storyType: "testimony", ageGate: "not-sure", interfaceLanguage: "fr" });
-const unsure = r.data.story;
-r = await a("POST", `/api/stories/${unsure.id}/guardian`, { decision: "declined" });
-r = await a("POST", `/api/stories/${unsure.id}/guardian`, { decision: "approved-in-simulation" });
-check("declined stays declined", r.status === 409, r.data);
-
-console.log("inbox");
-const op = client();
-r = await op("GET", "/api/inbox");
-check("inbox locked", r.status === 401);
-r = await op("POST", "/api/inbox", { passcode: "wrong" });
-check("wrong passcode", r.status === 401);
-r = await op("POST", "/api/inbox", { passcode: PASSCODE });
-r = await op("GET", "/api/inbox");
-check("inbox lists submission", r.status === 200 && r.data.items.some((i) => i.id === submissionId), r.data);
-check("inbox shows the path", r.data.items.find((i) => i.id === submissionId)?.storyType === "baptism", r.data);
-const item = r.data.items.find((i) => i.id === submissionId);
-r = await op("GET", item.fileUrl);
-check("inbox file", r.status === 200 && r.data.length > 1000);
-r = await a("GET", item.fileUrl);
-check("storyteller session can't open inbox", r.status === 401);
-r = await b("DELETE", `/api/mock-submissions/${submissionId}`);
-check("other session can't withdraw", r.status === 404);
-r = await a("DELETE", `/api/mock-submissions/${submissionId}`);
-check("withdraw", r.status === 204);
-r = await op("GET", item.fileUrl);
-check("withdrawn file gone", r.status === 404);
-
-console.log("concurrent submissions");
+console.log("delete on request");
 {
   const c = client();
   let q = await c("POST", "/api/stories", { storyType: "baptism", ageGate: "adult", interfaceLanguage: "en" });
   const sid = q.data.story.id;
-  await c("PATCH", `/api/stories/${sid}`, { fixtureId: "sample-b-short" });
+  await c("PATCH", `/api/stories/${sid}`, { reviewedText: "I was lost. Now I'm not. Got baptized Sunday." });
   q = await c("POST", "/api/render", { storyId: sid, kind: "card", outputLanguage: "en" });
-  const rc = q.data.asset;
-  for (const purpose of ["personal-output", "baptize-review"]) {
-    await c("POST", "/api/approve", { assetId: rc.id, assetVersion: rc.version, purpose, decision: "granted" });
-  }
-  // Six requests at once with one key, as a double click or a retry can produce.
-  const burst = await Promise.all(Array.from({ length: 6 }, () => c("POST", "/api/mock-submissions", { assetId: rc.id, idempotencyKey: "race" })));
-  check("concurrent same-key requests → one created", burst.filter((x) => x.status === 201).length === 1, burst.map((x) => x.status));
-  q = await c("POST", "/api/mock-submissions", { assetId: rc.id, idempotencyKey: "another-key" });
-  check("new key, same version → still one submission", q.status === 200 && q.data.submissions.length === 1, q.data);
-  await c("DELETE", `/api/stories/${sid}`);
+  const preview = q.data.asset.previewUrl;
+  q = await b("DELETE", `/api/stories/${sid}`);
+  check("other session can't delete", q.status === 404);
+  q = await c("DELETE", `/api/stories/${sid}`);
+  check("delete story", q.status === 204);
+  q = await c("GET", `/api/stories/${sid}`);
+  check("story gone", q.status === 404);
+  q = await c("GET", preview);
+  check("its files gone", q.status === 404);
 }
 
-console.log("delete");
-r = await a("GET", "/api/stories");
-check("session lists its earlier story", r.status === 200 && r.data.stories.some((s) => s.id === story.id), r.data);
-check("story list hides session id", r.data.stories.every((s) => !("sessionId" in s)), r.data);
-r = await b("GET", "/api/stories");
-check("other session can't list it", r.status === 200 && !r.data.stories.some((s) => s.id === story.id), r.data);
-r = await a("DELETE", `/api/stories/${story.id}`);
-check("delete story", r.status === 204);
-r = await a("GET", `/api/stories/${story.id}`);
-check("story gone", r.status === 404);
-r = await a("GET", "/api/stories");
-check("deleted story leaves the list", !r.data.stories.some((s) => s.id === story.id), r.data);
-r = await a("GET", vid.previewUrl);
-check("assets gone", r.status === 404);
+console.log("prototype endpoints removed");
+for (const [method, path] of [["GET", "/api/inbox"], ["POST", "/api/mock-submissions"], ["POST", "/api/submissions"], ["POST", "/api/guardian-simulation"]]) {
+  r = await a(method, path, method === "POST" ? {} : undefined);
+  check(`${method} ${path} is gone`, r.status === 404 || r.status === 405, r.status);
+}
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);

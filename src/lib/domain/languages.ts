@@ -18,7 +18,7 @@ export interface LanguageConfig {
   /** Default Speech-to-Text locale, plus regional alternatives the person can pick. */
   sttLocale: string;
   sttAlternatives: string[];
-  /** Text-to-Speech voice locale and the single stock voice used for the prototype. */
+  /** Text-to-Speech voice locale and the single stock voice used. */
   ttsLocale: string;
   ttsVoice: string;
   /** Cloud Translation target/source code. */

@@ -1,17 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileAudio, Keyboard, Mic, NotebookText, Video } from "lucide-react";
+import { FileAudio, Keyboard, Mic, Video } from "lucide-react";
 import { useApp, type PendingTranscript } from "@/components/app-state";
 import { CloudConsent } from "@/components/cloud-consent";
 import { RecorderPanel, type CaptureMedia } from "@/components/recorder";
 import { ErrorNote } from "@/components/flow/steps-start";
 import { bigButton, OptionButton, StepNumber, StepShell } from "@/components/step-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { fixturesFor } from "@/fixtures/stories";
 import type { Prompt } from "@/i18n/en";
 import { api } from "@/lib/client/api";
 import { findIdentifyingDetails } from "@/lib/domain/identifying";
@@ -22,7 +20,6 @@ import { sentencesFromWords } from "@/lib/domain/timing";
 export function CaptureStep() {
   const { t, flow, update, go, saveStory, errorText } = useApp();
   const story = flow.story!;
-  const [showSamples, setShowSamples] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lang = LANGUAGES[story.sourceLanguage];
 
@@ -31,20 +28,6 @@ export function CaptureStep() {
     try {
       await saveStory({ sourceLanguage: value });
       update({ sttLocale: null });
-    } catch (err) {
-      setError(errorText(err));
-    }
-  };
-
-  const samples = fixturesFor(story.storyType);
-
-  const chooseSample = async (id: string) => {
-    const fixture = samples.find((f) => f.id === id)!;
-    try {
-      // Samples carry no display name; clear one left over from an earlier sample.
-      await saveStory({ fixtureId: id, displayName: "" });
-      update({ sttLocale: fixture.sttLocale });
-      go("review");
     } catch (err) {
       setError(errorText(err));
     }
@@ -122,34 +105,6 @@ export function CaptureStep() {
             go("record");
           }}
         />
-        <OptionButton
-          icon={<NotebookText />}
-          title={t.capture.sample}
-          body={t.capture.sampleHint}
-          selected={showSamples}
-          onClick={() => setShowSamples((v) => !v)}
-        />
-        {showSamples && (
-          <ul className="flex flex-col gap-2 pl-2">
-            {samples.map((f) => (
-              <li key={f.id}>
-                <button
-                  type="button"
-                  className="w-full rounded-lg border bg-card px-4 py-3 text-left hover:border-primary/60 focus-visible:ring-2 focus-visible:ring-ring outline-none"
-                  onClick={() => chooseSample(f.id)}
-                >
-                  <span className="font-medium">{f.title}</span>{" "}
-                  <span className="text-muted-foreground" lang={LANGUAGES[f.language].uiLocale}>
-                    · {LANGUAGES[f.language].displayName}
-                  </span>
-                  <span className="block text-sm text-muted-foreground">
-                    {t.capture.sampleScenario} {f.scenario}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
       {error && <ErrorNote message={error} />}
     </StepShell>
@@ -582,7 +537,6 @@ export function ReviewStep() {
         </Button>
       }
     >
-      {story.fixture && <Badge variant="secondary">{t.review.sample}</Badge>}
       <div className="flex flex-col gap-2">
         <label htmlFor="reviewed" className="sr-only">
           {t.review.title}

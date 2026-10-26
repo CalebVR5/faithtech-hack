@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { AppProvider } from "@/components/app-state";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AppProvider>
           <SiteHeader />
           <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-6 pb-16">{children}</main>
+          <SiteFooter />
         </AppProvider>
       </body>
     </html>
